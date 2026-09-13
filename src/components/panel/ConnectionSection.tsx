@@ -64,6 +64,15 @@ export const ConnectionSection: React.FC<ConnectionSectionProps> = ({
         />
 
         <CheckboxField
+          label="接着時のボディ重複を防止"
+          checked={params.preventBodyOverlap}
+          onChange={(checked) =>
+            onParamChange("preventBodyOverlap", checked)
+          }
+          description="接着後にエージェントの体（円）同士が重なり合う配置になる場合、接着を行わないようにします"
+        />
+
+        <CheckboxField
           label="一直線で複合剛体に結合 (Compound)"
           checked={params.compoundOnAlign}
           onChange={(checked) => onParamChange("compoundOnAlign", checked)}

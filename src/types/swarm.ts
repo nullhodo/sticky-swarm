@@ -51,6 +51,7 @@ export interface SwarmParameters {
   targetRule: TargetRule;
   stiffness: number;
   showConstraints: boolean;
+  preventBodyOverlap: boolean;
 
   // Disconnection (Breakage by Age)
   disconnectionEnable: boolean;

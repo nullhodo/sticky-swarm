@@ -228,6 +228,40 @@ export function calculateDockingTarget(
     targetAgentB_posY = targetCircleBWorldY - circleBOffset_y;
   }
 
+  if (params.preventBodyOverlap) {
+    const bodiesA = agentA.renderParts.filter(
+      (rp) => rp.type === "circle",
+    );
+    const bodiesB = agentB.renderParts.filter(
+      (rp) => rp.type === "circle",
+    );
+
+    const cosB = Math.cos(targetAngleB);
+    const sinB = Math.sin(targetAngleB);
+
+    for (let i = 0; i < bodiesA.length; i++) {
+      const bA = bodiesA[i];
+      const bAWorldX = posA.x + (bA.localX * cosA - bA.localY * sinA);
+      const bAWorldY = posA.y + (bA.localX * sinA + bA.localY * cosA);
+      const radA = bA.radius ?? radius;
+
+      for (let j = 0; j < bodiesB.length; j++) {
+        const bB = bodiesB[j];
+        const bBWorldX =
+          targetAgentB_posX + (bB.localX * cosB - bB.localY * sinB);
+        const bBWorldY =
+          targetAgentB_posY + (bB.localX * sinB + bB.localY * cosB);
+        const radB = bB.radius ?? radius;
+
+        const dist = Math.hypot(bAWorldX - bBWorldX, bAWorldY - bBWorldY);
+        // Block docking if agent bodies overlap into each other
+        if (dist < (radA + radB) * 0.92) {
+          return null;
+        }
+      }
+    }
+  }
+
   const targetRelX = targetAgentB_posX - posA.x;
   const targetRelY = targetAgentB_posY - posA.y;
   const targetDistance = Math.hypot(targetRelX, targetRelY);

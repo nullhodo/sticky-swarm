@@ -82,6 +82,7 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
   targetRule: "arm_arm",
   stiffness: 0.1,
   showConstraints: false,
+  preventBodyOverlap: true,
 
   disconnectionEnable: false,
   disconnectionMinAge: 5.0,
@@ -121,6 +122,8 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
   stiffness: "接着時のバネの硬さ",
   showConstraints:
     "接着バネ拘束線（白い線）を表示するか (デフォルトは非表示)",
+  preventBodyOverlap:
+    "接着時にエージェントの体（円）同士が重なり合う配置の場合、接着を防止する (デフォルト有効)",
   disconnectionEnable: "接着の古さに応じて時間経過で確率的に切断するか",
   disconnectionMinAge: "切断が発生し始めるまでの猶予時間 (秒)",
   disconnectionChance: "秒間あたりの基準切断確率 (0.01〜1.0)",
