@@ -84,9 +84,9 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
   showConstraints: false,
   preventBodyOverlap: true,
 
-  disconnectionEnable: false,
+  disconnectionEnable: true,
   disconnectionMinAge: 5.0,
-  disconnectionChance: 0.1,
+  disconnectionChance: 0.05,
 
   compoundOnAlign: true,
 
