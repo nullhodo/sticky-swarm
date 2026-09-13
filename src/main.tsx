@@ -166,6 +166,9 @@ const App: React.FC = () => {
       "right_top",
       "right_two",
       "three_120",
+      "four_90",
+      "six_60",
+      "two_random_cardinal",
     ];
     const targetRules: TargetRule[] = [
       "any",
@@ -508,6 +511,7 @@ const App: React.FC = () => {
           drawDebug: true,
           zoomLevel: zoom,
           panOffset: pan,
+          fps: Math.round(p.frameRate()),
         });
       };
     };

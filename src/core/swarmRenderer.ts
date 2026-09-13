@@ -164,6 +164,7 @@ function drawDebugHud(
   agentCount: number,
   constraintCount: number,
   debugVectors: boolean,
+  fps?: number,
 ): void {
   target.push();
   const hudX = screenWidth - 240;
@@ -171,49 +172,63 @@ function drawDebugHud(
   target.fill(0, 0, 0, 180);
   target.stroke(255, 255, 255, 40);
   target.strokeWeight(1);
-  target.rect(hudX, hudY, 224, debugVectors ? 135 : 64, 6);
+  target.rect(hudX, hudY, 224, debugVectors ? 154 : 76, 6);
 
   target.noStroke();
-  target.fill(255);
   target.textSize(12);
   // @ts-ignore
   target.textAlign(target.LEFT || "left", target.TOP || "top");
-  target.text(`Agents: ${agentCount}`, hudX + 12, hudY + 10);
-  target.text(`Constraints: ${constraintCount}`, hudX + 12, hudY + 28);
+
+  // FPS display
+  target.fill(200);
+  target.text("FPS: ", hudX + 12, hudY + 10);
+  if (fps !== undefined) {
+    const fpsColor =
+      fps >= 55 ? "#4ADE80" : fps >= 30 ? "#FACC15" : "#F87171";
+    target.fill(fpsColor);
+    target.text(`${fps}`, hudX + 44, hudY + 10);
+  } else {
+    target.fill(200);
+    target.text("--", hudX + 44, hudY + 10);
+  }
+
+  target.fill(255);
+  target.text(`Agents: ${agentCount}`, hudX + 12, hudY + 28);
+  target.text(`Constraints: ${constraintCount}`, hudX + 12, hudY + 46);
 
   if (debugVectors) {
     // Cyan: Velocity
     target.stroke("#00E5FF");
     target.strokeWeight(3.5);
-    target.line(hudX + 12, hudY + 54, hudX + 28, hudY + 54);
+    target.line(hudX + 12, hudY + 72, hudX + 28, hudY + 72);
     target.noStroke();
     target.fill("#00E5FF");
-    target.text("動き・速度 (Velocity)", hudX + 34, hudY + 48);
+    target.text("動き・速度 (Velocity)", hudX + 34, hudY + 66);
 
     // Coral: Force
     target.stroke("#FF5722");
     target.strokeWeight(3.5);
-    target.line(hudX + 12, hudY + 74, hudX + 28, hudY + 74);
+    target.line(hudX + 12, hudY + 92, hudX + 28, hudY + 92);
     target.noStroke();
     target.fill("#FF5722");
-    target.text("加わる力 (Force)", hudX + 34, hudY + 68);
+    target.text("加わる力 (Force)", hudX + 34, hudY + 86);
 
     // White: Constraint line
     target.stroke(255, 180);
     target.strokeWeight(2);
-    target.line(hudX + 12, hudY + 94, hudX + 28, hudY + 94);
+    target.line(hudX + 12, hudY + 112, hudX + 28, hudY + 112);
     target.noStroke();
     target.fill(255);
-    target.text("接着バネ (Constraint)", hudX + 34, hudY + 88);
+    target.text("接着バネ (Constraint)", hudX + 34, hudY + 106);
 
     // Green: Hull
     target.stroke(0, 255, 0);
     target.strokeWeight(1.5);
     target.noFill();
-    target.rect(hudX + 12, hudY + 112, 14, 10);
+    target.rect(hudX + 12, hudY + 130, 14, 10);
     target.noStroke();
     target.fill(0, 255, 0);
-    target.text("剛体 (Collision Hull)", hudX + 34, hudY + 110);
+    target.text("剛体 (Collision Hull)", hudX + 34, hudY + 128);
   }
   target.pop();
 }
@@ -231,6 +246,7 @@ export function renderSwarmScene(
     drawDebug?: boolean;
     zoomLevel?: number;
     panOffset?: { x: number; y: number };
+    fps?: number;
   },
 ): void {
   target.background(params.backgroundColor);
@@ -278,6 +294,7 @@ export function renderSwarmScene(
       engine.agents.length,
       engine.activeConstraints.length,
       params.debugVectors,
+      options?.fps,
     );
   }
 

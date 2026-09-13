@@ -5,7 +5,10 @@ export type ArmPattern =
   | "left_right"
   | "right_top"
   | "right_two"
-  | "three_120";
+  | "three_120"
+  | "four_90"
+  | "six_60"
+  | "two_random_cardinal";
 
 export type TargetRule = "any" | "body_body" | "arm_arm" | "arm_body";
 

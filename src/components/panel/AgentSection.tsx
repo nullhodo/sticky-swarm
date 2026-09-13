@@ -20,7 +20,10 @@ const ARM_PATTERN_OPTIONS = [
   { label: "2本 (左右反対)", value: "left_right" },
   { label: "2本 (直角: 右と上)", value: "right_top" },
   { label: "2本 (右側に平行)", value: "right_two" },
+  { label: "2本 (四方から各個体ランダム)", value: "two_random_cardinal" },
   { label: "3本 (120度等間隔)", value: "three_120" },
+  { label: "4本 (90度等間隔)", value: "four_90" },
+  { label: "6本 (60度等間隔)", value: "six_60" },
 ];
 
 export const AgentSection: React.FC<AgentSectionProps> = ({

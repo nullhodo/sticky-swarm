@@ -81,6 +81,37 @@ export function createSingleAgent(
         offsetY: Math.sin(currentAngle) * offsetDistance,
       });
     }
+  } else if (pattern === "four_90") {
+    for (let i = 0; i < 4; i++) {
+      const currentAngle = (Math.PI / 2) * i;
+      armConfigs.push({
+        angle: currentAngle,
+        offsetX: Math.cos(currentAngle) * offsetDistance,
+        offsetY: Math.sin(currentAngle) * offsetDistance,
+      });
+    }
+  } else if (pattern === "six_60") {
+    for (let i = 0; i < 6; i++) {
+      const currentAngle = (Math.PI / 3) * i;
+      armConfigs.push({
+        angle: currentAngle,
+        offsetX: Math.cos(currentAngle) * offsetDistance,
+        offsetY: Math.sin(currentAngle) * offsetDistance,
+      });
+    }
+  } else if (pattern === "two_random_cardinal") {
+    const cardinalAngles = [0, Math.PI / 2, Math.PI, (Math.PI * 3) / 2];
+    const idx1 = Math.floor(Math.random() * 4);
+    let idx2 = Math.floor(Math.random() * 3);
+    if (idx2 >= idx1) idx2++;
+    const chosenAngles = [cardinalAngles[idx1], cardinalAngles[idx2]];
+    for (const currentAngle of chosenAngles) {
+      armConfigs.push({
+        angle: currentAngle,
+        offsetX: Math.cos(currentAngle) * offsetDistance,
+        offsetY: Math.sin(currentAngle) * offsetDistance,
+      });
+    }
   }
 
   for (let i = 0; i < armConfigs.length; i++) {
