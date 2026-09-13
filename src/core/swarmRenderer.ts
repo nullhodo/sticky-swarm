@@ -54,12 +54,24 @@ function drawArrow(
 function drawSwarmConstraints(
   target: RenderTarget,
   constraints: ActiveConstraintWrapper[],
+  disconnectionEnable = false,
+  minAge = 5.0,
 ): void {
-  target.stroke(255, 100);
   target.strokeWeight(2);
   for (let i = 0; i < constraints.length; i++) {
-    const c = constraints[i].constraint;
+    const cw = constraints[i];
+    const c = cw.constraint;
     if (c.bodyA && c.bodyB) {
+      if (disconnectionEnable && cw.ageSeconds > 1.0) {
+        // As age approaches minAge and beyond, shift from white to warm warning amber
+        const progress = Math.min(1.0, cw.ageSeconds / (minAge * 1.5));
+        const r = 255;
+        const g = Math.round(255 * (1 - progress * 0.45));
+        const b = Math.round(255 * (1 - progress * 0.75));
+        target.stroke(r, g, b, 180);
+      } else {
+        target.stroke(255, 120);
+      }
       target.line(
         c.bodyA.position.x,
         c.bodyA.position.y,
@@ -217,23 +229,39 @@ export function renderSwarmScene(
   params: SwarmParameters,
   options?: {
     drawDebug?: boolean;
+    zoomLevel?: number;
+    panOffset?: { x: number; y: number };
   },
 ): void {
   target.background(params.backgroundColor);
 
-  const scaleFactor = Math.min(
+  const baseScale = Math.min(
     viewportWidth / LOGICAL_SPACE_WIDTH,
     viewportHeight / LOGICAL_SPACE_HEIGHT,
   );
-  const offsetX = (viewportWidth - LOGICAL_SPACE_WIDTH * scaleFactor) / 2;
-  const offsetY =
-    (viewportHeight - LOGICAL_SPACE_HEIGHT * scaleFactor) / 2;
+  const baseOffsetX =
+    (viewportWidth - LOGICAL_SPACE_WIDTH * baseScale) / 2;
+  const baseOffsetY =
+    (viewportHeight - LOGICAL_SPACE_HEIGHT * baseScale) / 2;
+
+  const zoom = options?.zoomLevel ?? 1.0;
+  const panX = options?.panOffset?.x ?? 0;
+  const panY = options?.panOffset?.y ?? 0;
+
+  const totalScale = baseScale * zoom;
+  const totalOffsetX = baseOffsetX + panX;
+  const totalOffsetY = baseOffsetY + panY;
 
   target.push();
-  target.translate(offsetX, offsetY);
-  target.scale(scaleFactor);
+  target.translate(totalOffsetX, totalOffsetY);
+  target.scale(totalScale);
 
-  drawSwarmConstraints(target, engine.activeConstraints);
+  drawSwarmConstraints(
+    target,
+    engine.activeConstraints,
+    params.disconnectionEnable,
+    params.disconnectionMinAge,
+  );
   drawSwarmAgents(target, engine.agents, params.debugMode);
 
   const shouldDrawDebug = options?.drawDebug ?? false;
@@ -251,5 +279,28 @@ export function renderSwarmScene(
       engine.activeConstraints.length,
       params.debugVectors,
     );
+  }
+
+  // Draw Zoom HUD if zoomed
+  if (
+    shouldDrawDebug &&
+    options?.zoomLevel &&
+    Math.abs(options.zoomLevel - 1.0) > 0.01
+  ) {
+    target.push();
+    const zoomPct = Math.round(options.zoomLevel * 100);
+    const zx = viewportWidth - 84;
+    const zy = viewportHeight - 38;
+    target.fill(0, 0, 0, 160);
+    target.stroke(255, 255, 255, 40);
+    target.strokeWeight(1);
+    target.rect(zx, zy, 72, 24, 4);
+    target.noStroke();
+    target.fill(255);
+    target.textSize(11);
+    // @ts-ignore
+    target.textAlign(target.CENTER || "center", target.CENTER || "center");
+    target.text(`${zoomPct}%`, zx + 36, zy + 12);
+    target.pop();
   }
 }

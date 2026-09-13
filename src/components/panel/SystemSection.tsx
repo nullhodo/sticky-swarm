@@ -32,9 +32,11 @@ export const SystemSection: React.FC<SystemSectionProps> = ({
       <SliderField
         label="初期エージェント数"
         value={params.agentCount}
+        displayValue={`${params.agentCount}体`}
         min={10}
-        max={200}
-        step={1}
+        max={1000}
+        isLogarithmic={true}
+        description="指数スケール (10〜1000体)"
         onChange={(val) => onParamChange("agentCount", Math.round(val))}
       />
 

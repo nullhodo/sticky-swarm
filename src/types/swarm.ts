@@ -42,6 +42,11 @@ export interface SwarmParameters {
   targetRule: TargetRule;
   stiffness: number;
 
+  // Disconnection (Breakage by Age)
+  disconnectionEnable: boolean;
+  disconnectionMinAge: number;
+  disconnectionChance: number;
+
   // Experimental
   compoundOnAlign: boolean;
 
@@ -91,4 +96,5 @@ export interface ActiveConstraintWrapper {
   initialAngleDiff: number;
   targetAngleDiff: number;
   currentAngleDiff: number;
+  ageSeconds: number;
 }

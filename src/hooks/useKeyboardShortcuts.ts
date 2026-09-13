@@ -9,6 +9,7 @@ interface Props {
   onStopRecord: () => void;
   onExportImage: () => void;
   onRestart: () => void;
+  onResetZoom?: () => void;
 }
 
 export function useKeyboardShortcuts({
@@ -20,6 +21,7 @@ export function useKeyboardShortcuts({
   onStopRecord,
   onExportImage,
   onRestart,
+  onResetZoom,
 }: Props): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -67,6 +69,9 @@ export function useKeyboardShortcuts({
       } else if (key === "e") {
         e.preventDefault();
         onExportImage();
+      } else if (key === "0") {
+        e.preventDefault();
+        onResetZoom?.();
       }
     };
 
@@ -83,5 +88,6 @@ export function useKeyboardShortcuts({
     onStopRecord,
     onExportImage,
     onRestart,
+    onResetZoom,
   ]);
 }

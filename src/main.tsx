@@ -2,7 +2,7 @@ import { useAtom } from "jotai";
 import p5 from "p5";
 import p5Svg from "p5.js-svg";
 import type React from "react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ControlPanel } from "./components/ControlPanel";
 import { RecordingOverlay } from "./components/RecordingOverlay";
@@ -58,6 +58,27 @@ const App: React.FC = () => {
   const paramsRef = useRef<SwarmParameters>(params);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRestoringHistoryRef = useRef(false);
+
+  // Viewport Zoom & Pan State
+  const zoomLevelRef = useRef(1.0);
+  const panOffsetRef = useRef({ x: 0, y: 0 });
+  const [zoomDisplay, setZoomDisplay] = useState(1.0);
+
+  const handleResetZoom = useCallback(() => {
+    zoomLevelRef.current = 1.0;
+    panOffsetRef.current = { x: 0, y: 0 };
+    setZoomDisplay(1.0);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    zoomLevelRef.current = Math.min(5.0, zoomLevelRef.current * 1.2);
+    setZoomDisplay(zoomLevelRef.current);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    zoomLevelRef.current = Math.max(0.2, zoomLevelRef.current / 1.2);
+    setZoomDisplay(zoomLevelRef.current);
+  }, []);
 
   useEffect(() => {
     paramsRef.current = params;
@@ -353,6 +374,7 @@ const App: React.FC = () => {
     onStopRecord: handleStopRecord,
     onExportImage: handleExportJpg,
     onRestart: handleRestart,
+    onResetZoom: handleResetZoom,
   });
 
   // p5 Sketch Lifecycle
@@ -394,11 +416,75 @@ const App: React.FC = () => {
         }
       };
 
+      p.mouseWheel = (event: { deltaY: number }) => {
+        const mx = p.mouseX;
+        const my = p.mouseY;
+
+        if (mx < 0 || mx > p.width || my < 0 || my > p.height) {
+          return true;
+        }
+
+        const baseScale = Math.min(
+          p.width / LOGICAL_SPACE_WIDTH,
+          p.height / LOGICAL_SPACE_HEIGHT,
+        );
+        const baseOffsetX =
+          (p.width - LOGICAL_SPACE_WIDTH * baseScale) / 2;
+        const baseOffsetY =
+          (p.height - LOGICAL_SPACE_HEIGHT * baseScale) / 2;
+
+        const currentZoom = zoomLevelRef.current;
+        const currentPan = panOffsetRef.current;
+
+        const currentTotalScale = baseScale * currentZoom;
+        const currentTotalOffsetX = baseOffsetX + currentPan.x;
+        const currentTotalOffsetY = baseOffsetY + currentPan.y;
+
+        const logicalX = (mx - currentTotalOffsetX) / currentTotalScale;
+        const logicalY = (my - currentTotalOffsetY) / currentTotalScale;
+
+        const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+        const nextZoom = Math.min(
+          5.0,
+          Math.max(0.2, currentZoom * zoomFactor),
+        );
+
+        const nextTotalScale = baseScale * nextZoom;
+        const nextPanX = mx - baseOffsetX - logicalX * nextTotalScale;
+        const nextPanY = my - baseOffsetY - logicalY * nextTotalScale;
+
+        zoomLevelRef.current = nextZoom;
+        panOffsetRef.current = { x: nextPanX, y: nextPanY };
+        setZoomDisplay(nextZoom);
+
+        return false;
+      };
+
+      p.doubleClicked = () => {
+        handleResetZoom();
+      };
+
       p.draw = () => {
         const engine = engineRef.current;
         if (!engine) return;
 
         const currentParams = paramsRef.current;
+
+        const baseScale = Math.min(
+          p.width / LOGICAL_SPACE_WIDTH,
+          p.height / LOGICAL_SPACE_HEIGHT,
+        );
+        const baseOffsetX =
+          (p.width - LOGICAL_SPACE_WIDTH * baseScale) / 2;
+        const baseOffsetY =
+          (p.height - LOGICAL_SPACE_HEIGHT * baseScale) / 2;
+
+        const zoom = zoomLevelRef.current;
+        const pan = panOffsetRef.current;
+
+        const totalScale = baseScale * zoom;
+        const totalOffsetX = baseOffsetX + pan.x;
+        const totalOffsetY = baseOffsetY + pan.y;
 
         // Apply mouse interaction if within canvas
         if (
@@ -408,16 +494,8 @@ const App: React.FC = () => {
           p.mouseY >= 0 &&
           p.mouseY <= p.height
         ) {
-          const scaleFactor = Math.min(
-            p.width / LOGICAL_SPACE_WIDTH,
-            p.height / LOGICAL_SPACE_HEIGHT,
-          );
-          const offsetX =
-            (p.width - LOGICAL_SPACE_WIDTH * scaleFactor) / 2;
-          const offsetY =
-            (p.height - LOGICAL_SPACE_HEIGHT * scaleFactor) / 2;
-          const logicalMouseX = (p.mouseX - offsetX) / scaleFactor;
-          const logicalMouseY = (p.mouseY - offsetY) / scaleFactor;
+          const logicalMouseX = (p.mouseX - totalOffsetX) / totalScale;
+          const logicalMouseY = (p.mouseY - totalOffsetY) / totalScale;
 
           engine.applyMouseInteraction(logicalMouseX, logicalMouseY);
         }
@@ -428,6 +506,8 @@ const App: React.FC = () => {
         // Render viewport with unified renderer
         renderSwarmScene(p, engine, p.width, p.height, currentParams, {
           drawDebug: true,
+          zoomLevel: zoom,
+          panOffset: pan,
         });
       };
     };
@@ -441,7 +521,7 @@ const App: React.FC = () => {
       engineRef.current = null;
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     };
-  }, [setRecordingState]);
+  }, [setRecordingState, handleResetZoom]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-gray-950 select-none">
@@ -461,6 +541,34 @@ const App: React.FC = () => {
         onExportJsonc={handleExportJsonc}
         onImportJsonc={handleImportJsonc}
       />
+
+      {/* Floating Zoom HUD & Quick Controls */}
+      <div className="absolute bottom-4 right-4 z-30 flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-lg text-white text-xs select-none shadow-lg">
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          title="縮小 (ホイール下スクロール)"
+          className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 transition cursor-pointer font-bold"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          onClick={handleResetZoom}
+          title="ズーム倍率を等倍にリセット (0キー / ダブルクリック)"
+          className="px-2 py-0.5 font-mono text-[11px] text-gray-200 hover:text-white hover:bg-white/20 rounded transition cursor-pointer"
+        >
+          {Math.round(zoomDisplay * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          title="拡大 (ホイール上スクロール)"
+          className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 transition cursor-pointer font-bold"
+        >
+          +
+        </button>
+      </div>
 
       <RecordingOverlay onStopRecord={handleStopRecord} />
     </div>

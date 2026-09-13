@@ -41,6 +41,22 @@ export const PREDEFINED_PALETTES: ColorPalette[] = [
     title: "Fruit Salad",
     colors: ["#9EB6F8", "#386CD4", "#292E4F", "#E2AD3E", "#F3D959"],
   },
+  {
+    title: "Cabbage Violet",
+    colors: ["#BDDEDD", "#8BB9C1", "#7F5388", "#564A70", "#34283F"],
+  },
+  {
+    title: "Pink Salt Lake",
+    colors: ["#6BB1AD", "#A7BCBD", "#EDECDB", "#E59E8D", "#A75043"],
+  },
+  {
+    title: "Kyoto Moss Garden",
+    colors: ["#2A3D2A", "#829E65", "#A8A599", "#C76B3C", "#EFECE1"],
+  },
+  {
+    title: "Cyberpunk Neon",
+    colors: ["#FF007F", "#00F0FF", "#FFE600", "#1A0B2E"],
+  },
 ];
 
 export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
@@ -64,6 +80,10 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
 
   targetRule: "arm_arm",
   stiffness: 0.1,
+
+  disconnectionEnable: false,
+  disconnectionMinAge: 5.0,
+  disconnectionChance: 0.1,
 
   compoundOnAlign: true,
 
@@ -92,6 +112,9 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
     "腕の配置パターン (one_right, left_right, right_top, right_two, three_120)",
   targetRule: "接着する対象のルール (any, body_body, arm_arm, arm_body)",
   stiffness: "接着時のバネの硬さ",
+  disconnectionEnable: "接着の古さに応じて時間経過で確率的に切断するか",
+  disconnectionMinAge: "切断が発生し始めるまでの猶予時間 (秒)",
+  disconnectionChance: "秒間あたりの基準切断確率 (0.01〜1.0)",
   interactionEnable: "マウスインタラクションを有効にするか",
   interactionMode: "マウスカーソルへの反応モード (attract/repel)",
   interactionForce: "マウスインタラクションの力の強さ",

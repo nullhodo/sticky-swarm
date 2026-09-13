@@ -27,6 +27,7 @@ export class SwarmEngine {
   public agents: SwarmAgent[] = [];
   public activeConstraints: ActiveConstraintWrapper[] = [];
   public connectedPairsSet = new Set<string>();
+  private disconnectionCooldowns = new Map<string, number>();
   private agentIdCounter = 0;
 
   private uniformBodyColor: string | null = null;
@@ -63,6 +64,7 @@ export class SwarmEngine {
     this.agents = [];
     this.activeConstraints = [];
     this.connectedPairsSet.clear();
+    this.disconnectionCooldowns.clear();
     this.agentIdCounter = 0;
 
     const colors =
@@ -134,6 +136,7 @@ export class SwarmEngine {
             : `${parentAgentB}-${parentAgentA}`;
 
         if (this.connectedPairsSet.has(pairId)) continue;
+        if ((this.disconnectionCooldowns.get(pairId) ?? 0) > 0) continue;
 
         const labelA = partA.partLabel;
         const labelB = partB.partLabel;
@@ -232,6 +235,7 @@ export class SwarmEngine {
       initialAngleDiff: docking.initialAngleDiff,
       targetAngleDiff: docking.targetAngleDiff,
       currentAngleDiff: docking.initialAngleDiff,
+      ageSeconds: 0.0,
     });
 
     this.connectedPairsSet.add(pairIdentifier);
@@ -263,7 +267,12 @@ export class SwarmEngine {
           cw.originalLength + (cw.targetDistance - cw.originalLength) * t;
       }
 
-      if (this.currentParams.compoundOnAlign && cw.alignProgress >= 1.0) {
+      // If compounding is enabled and disconnection is disabled, don't keep running constraint physics after alignment
+      if (
+        this.currentParams.compoundOnAlign &&
+        !this.currentParams.disconnectionEnable &&
+        cw.alignProgress >= 1.0
+      ) {
         continue;
       }
 
@@ -303,12 +312,64 @@ export class SwarmEngine {
   }
 
   private processConnections(): void {
-    if (!this.currentParams.compoundOnAlign) return;
-
     for (let i = this.activeConstraints.length - 1; i >= 0; i--) {
       const cw = this.activeConstraints[i];
+      cw.ageSeconds += 1 / 60;
 
-      if (cw.alignProgress >= 1.0) {
+      // Check age-dependent probabilistic disconnection
+      if (this.currentParams.disconnectionEnable) {
+        if (cw.ageSeconds >= this.currentParams.disconnectionMinAge) {
+          const overAge =
+            cw.ageSeconds - this.currentParams.disconnectionMinAge;
+          const probPerSec =
+            this.currentParams.disconnectionChance * (1 + overAge * 0.25);
+          const probThisFrame = probPerSec / 60;
+
+          if (Math.random() < probThisFrame) {
+            // Sever the connection
+            Matter.World.remove(this.world, cw.constraint);
+            this.connectedPairsSet.delete(cw.pairId);
+            this.disconnectionCooldowns.set(cw.pairId, 120); // 2-second reconnect cooldown
+
+            const bodyA = cw.constraint.bodyA;
+            const bodyB = cw.constraint.bodyB;
+            if (bodyA && bodyB) {
+              bodyA.collisionFilter.group = 0;
+              bodyB.collisionFilter.group = 0;
+              for (let p = 0; p < bodyA.parts.length; p++) {
+                bodyA.parts[p].collisionFilter.group = 0;
+              }
+              for (let p = 0; p < bodyB.parts.length; p++) {
+                bodyB.parts[p].collisionFilter.group = 0;
+              }
+
+              // Apply gentle parting impulse so they separate smoothly
+              const dx = bodyB.position.x - bodyA.position.x;
+              const dy = bodyB.position.y - bodyA.position.y;
+              const dist = Math.hypot(dx, dy) || 1;
+              const sepForce = 0.003 * Math.min(bodyA.mass, bodyB.mass);
+              Matter.Body.applyForce(bodyA, bodyA.position, {
+                x: -(dx / dist) * sepForce,
+                y: -(dy / dist) * sepForce,
+              });
+              Matter.Body.applyForce(bodyB, bodyB.position, {
+                x: (dx / dist) * sepForce,
+                y: (dy / dist) * sepForce,
+              });
+            }
+
+            this.activeConstraints.splice(i, 1);
+            continue;
+          }
+        }
+      }
+
+      // Merge into compound only when compounding is enabled AND disconnection is disabled
+      if (
+        this.currentParams.compoundOnAlign &&
+        !this.currentParams.disconnectionEnable &&
+        cw.alignProgress >= 1.0
+      ) {
         const agentA = this.agents.find((a) => a.id === cw.agentAId);
         const agentB = this.agents.find((a) => a.id === cw.agentBId);
 
@@ -401,6 +462,15 @@ export class SwarmEngine {
   public step(params: SwarmParameters): void {
     this.currentParams = params;
     Matter.Engine.update(this.engine, 1000 / 60);
+
+    // Decrement disconnection cooldowns
+    for (const [pairId, cd] of this.disconnectionCooldowns.entries()) {
+      if (cd <= 1) {
+        this.disconnectionCooldowns.delete(pairId);
+      } else {
+        this.disconnectionCooldowns.set(pairId, cd - 1);
+      }
+    }
 
     this.spawnAgentsDynamically();
     applyNoiseForces(
