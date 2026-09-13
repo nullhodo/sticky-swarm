@@ -60,12 +60,14 @@ export interface SwarmParameters {
   // Experimental
   compoundOnAlign: boolean;
 
-  // Colors & Palette
+  // Colors & Palette & Visuals
   paletteIndex: number;
   backgroundColor: string;
   availableObjectColors: string[];
   uniformColor: boolean;
+  uniformColorHex?: string;
   darkerArmColor: boolean;
+  shadowEnable: boolean;
 
   // Export
   exportScaleMultiplier: number;

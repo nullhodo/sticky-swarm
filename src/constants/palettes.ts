@@ -93,7 +93,9 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
   backgroundColor: "#292E4F",
   availableObjectColors: ["#A6171C", "#D6D0C5", "#F1C045"],
   uniformColor: true,
+  uniformColorHex: "#A6171C",
   darkerArmColor: true,
+  shadowEnable: false,
 
   exportScaleMultiplier: 2,
 };
@@ -130,6 +132,8 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
   paletteIndex: "使用するカラーパレットのインデックス",
   backgroundColor: "背景色",
   uniformColor: "全てのエージェントを同じ色で統一する",
+  uniformColorHex: "全エージェント統一時に使用するボディの色",
   darkerArmColor: "腕の色をボディより少し暗い色にする",
+  shadowEnable: "エージェントにシャドウ（影）を描画する",
   exportScaleMultiplier: "画像書き出し時の解像度倍率",
 };

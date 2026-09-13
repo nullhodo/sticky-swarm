@@ -5,7 +5,7 @@ import type {
   SwarmParameters,
 } from "../types/swarm";
 
-function darkenHex(hex: string, amount = 0.35): string {
+export function darkenHex(hex: string, amount = 0.35): string {
   let clean = hex.replace("#", "");
   if (clean.length === 3) {
     clean = clean
@@ -141,10 +141,12 @@ export function createSingleAgent(
       ? params.availableObjectColors
       : ["#FFFFFF", "#000000"];
 
-  const baseBodyColorStr =
-    params.uniformColor && uniformBodyColor
-      ? uniformBodyColor
-      : colors[Math.floor(Math.random() * colors.length)];
+  const chosenColor =
+    uniformBodyColor || params.uniformColorHex || colors[0];
+
+  const baseBodyColorStr = params.uniformColor
+    ? chosenColor
+    : colors[Math.floor(Math.random() * colors.length)];
 
   let finalArmColorStr: string;
   if (params.darkerArmColor) {
@@ -153,7 +155,9 @@ export function createSingleAgent(
     finalArmColorStr =
       params.uniformColor && uniformArmColor
         ? uniformArmColor
-        : colors[Math.floor(Math.random() * colors.length)];
+        : params.uniformColor
+          ? chosenColor
+          : colors[Math.floor(Math.random() * colors.length)];
   }
 
   const renderParts: RenderPart[] = [];

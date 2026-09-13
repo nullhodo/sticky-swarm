@@ -86,7 +86,21 @@ function drawSwarmAgents(
   target: RenderTarget,
   agents: SwarmAgent[],
   debugMode = false,
+  shadowEnable = false,
 ): void {
+  const ctx = (
+    target as unknown as { drawingContext?: CanvasRenderingContext2D }
+  ).drawingContext;
+  const applyShadow =
+    shadowEnable && ctx && typeof ctx.shadowColor === "string";
+
+  if (applyShadow && ctx) {
+    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 5;
+  }
+
   for (let i = 0; i < agents.length; i++) {
     const agent = agents[i];
     const body = agent.physicsBody;
@@ -119,6 +133,13 @@ function drawSwarmAgents(
       target.pop();
     }
     target.pop();
+  }
+
+  if (applyShadow && ctx) {
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
   }
 }
 
@@ -294,7 +315,12 @@ export function renderSwarmScene(
       params.disconnectionMinAge,
     );
   }
-  drawSwarmAgents(target, engine.agents, params.debugMode);
+  drawSwarmAgents(
+    target,
+    engine.agents,
+    params.debugMode,
+    params.shadowEnable,
+  );
 
   if (shouldDrawDebug && params.debugMode && params.debugVectors) {
     drawDebugVectors(target, engine.agents);

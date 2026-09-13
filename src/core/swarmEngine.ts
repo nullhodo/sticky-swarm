@@ -4,7 +4,7 @@ import type {
   SwarmAgent,
   SwarmParameters,
 } from "../types/swarm";
-import { createSingleAgent } from "./agentBuilder";
+import { createSingleAgent, darkenHex } from "./agentBuilder";
 import { mergeAgentsIntoCompound } from "./compoundMerger";
 import {
   type PartReference,
@@ -78,10 +78,11 @@ export class SwarmEngine {
         : ["#FFFFFF", "#000000"];
 
     if (params.uniformColor) {
-      this.uniformBodyColor =
+      const chosenColor =
+        params.uniformColorHex ||
         colors[Math.floor(Math.random() * colors.length)];
-      this.uniformArmColor =
-        colors[Math.floor(Math.random() * colors.length)];
+      this.uniformBodyColor = chosenColor;
+      this.uniformArmColor = chosenColor;
     } else {
       this.uniformBodyColor = null;
       this.uniformArmColor = null;
@@ -96,6 +97,27 @@ export class SwarmEngine {
         Math.random() * (LOGICAL_SPACE_HEIGHT * 0.8);
       this.agentIdCounter++;
       this.createSingleAgent(x, y, `agent_${this.agentIdCounter}`);
+    }
+  }
+
+  public applyUniformColor(colorHex: string, darkerArm: boolean): void {
+    this.uniformBodyColor = colorHex;
+    this.uniformArmColor = colorHex;
+    this.currentParams.uniformColorHex = colorHex;
+    this.currentParams.uniformColor = true;
+
+    const armColor = darkerArm ? darkenHex(colorHex, 0.35) : colorHex;
+
+    for (let i = 0; i < this.agents.length; i++) {
+      const agent = this.agents[i];
+      for (let j = 0; j < agent.renderParts.length; j++) {
+        const rp = agent.renderParts[j];
+        if (rp.type === "circle") {
+          rp.color = colorHex;
+        } else if (rp.type === "rect") {
+          rp.color = armColor;
+        }
+      }
     }
   }
 

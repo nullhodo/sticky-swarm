@@ -1,4 +1,4 @@
-import { PaletteIcon, SparklesIcon } from "lucide-react";
+import { CheckIcon, PaletteIcon, SparklesIcon } from "lucide-react";
 import type React from "react";
 import { PREDEFINED_PALETTES } from "../../constants/palettes";
 import type { SwarmParameters } from "../../types/swarm";
@@ -29,6 +29,19 @@ export const ColorSection: React.FC<ColorSectionProps> = ({
     value: idx,
   }));
 
+  const currentPalette =
+    PREDEFINED_PALETTES[params.paletteIndex] || PREDEFINED_PALETTES[0];
+
+  const activeUniformColor =
+    params.uniformColorHex || currentPalette.colors[0];
+
+  const handleSwatchClick = (colorHex: string) => {
+    if (!params.uniformColor) {
+      onParamChange("uniformColor", true);
+    }
+    onParamChange("uniformColorHex", colorHex);
+  };
+
   return (
     <AccordionSection
       id="color"
@@ -42,38 +55,105 @@ export const ColorSection: React.FC<ColorSectionProps> = ({
           label="カラーパレット"
           value={params.paletteIndex}
           options={paletteOptions}
-          onChange={(val) =>
-            onParamChange("paletteIndex", Number.parseInt(val, 10))
-          }
+          onChange={(val) => {
+            const nextIdx = Number.parseInt(val, 10);
+            onParamChange("paletteIndex", nextIdx);
+            const nextPal = PREDEFINED_PALETTES[nextIdx];
+            if (nextPal && nextPal.colors.length > 0) {
+              onParamChange("availableObjectColors", nextPal.colors);
+              onParamChange("uniformColorHex", nextPal.colors[0]);
+            }
+          }}
         />
 
-        {/* Palette preview swatches */}
-        <div className="flex h-4 rounded overflow-hidden mt-1.5 border border-gray-300">
-          {PREDEFINED_PALETTES[params.paletteIndex].colors.map((c) => (
-            <div
-              key={c}
-              className="flex-1"
-              style={{ backgroundColor: c }}
-              title={c}
-            />
-          ))}
+        {/* Palette preview swatches with click-to-select */}
+        <div className="mt-2">
+          <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1">
+            <span>パレットカラー</span>
+            <span className="text-[10px] text-gray-400">
+              {params.uniformColor
+                ? "クリックでエージェント色を選択"
+                : "クリックで統一色に設定"}
+            </span>
+          </div>
+          <div className="flex h-7 rounded overflow-hidden border border-gray-300 gap-0.5 bg-gray-100 p-0.5 shadow-inner">
+            {currentPalette.colors.map((c) => {
+              const isSelectedAgent =
+                params.uniformColor &&
+                activeUniformColor.toLowerCase() === c.toLowerCase();
+
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => handleSwatchClick(c)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    onParamChange("backgroundColor", c);
+                  }}
+                  className={`flex-1 h-full rounded-xs transition-all relative flex items-center justify-center cursor-pointer ${
+                    isSelectedAgent
+                      ? "ring-2 ring-indigo-600 ring-offset-1 z-10 scale-105"
+                      : "hover:opacity-90 hover:scale-[1.02]"
+                  }`}
+                  style={{ backgroundColor: c }}
+                  title={`${c}\n左クリック: エージェント色に設定\n右クリック: 背景色に設定`}
+                >
+                  {isSelectedAgent && (
+                    <span className="bg-black/40 rounded-full p-0.5 flex items-center justify-center">
+                      <CheckIcon className="w-3 h-3 text-white drop-shadow" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-gray-700">背景色</span>
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={params.backgroundColor}
-            onChange={(e) =>
-              onParamChange("backgroundColor", e.target.value)
-            }
-            className="w-7 h-7 rounded border border-gray-300 p-0.5 cursor-pointer"
-          />
-          <span className="font-mono text-gray-600 text-xs">
-            {params.backgroundColor}
+      <div className="space-y-1.5 pt-1 border-t border-gray-100">
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-gray-700">背景色</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={params.backgroundColor}
+              onChange={(e) =>
+                onParamChange("backgroundColor", e.target.value)
+              }
+              className="w-7 h-7 rounded border border-gray-300 p-0.5 cursor-pointer"
+            />
+            <span className="font-mono text-gray-600 text-xs">
+              {params.backgroundColor}
+            </span>
+          </div>
+        </div>
+
+        {/* 1-click background picker from current palette */}
+        <div className="flex items-center gap-1.5 pt-0.5">
+          <span className="text-[11px] text-gray-500 shrink-0">
+            パレットから選択:
           </span>
+          <div className="flex gap-1 flex-1">
+            {currentPalette.colors.map((c) => {
+              const isSelectedBg =
+                params.backgroundColor.toLowerCase() === c.toLowerCase();
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => onParamChange("backgroundColor", c)}
+                  className={`h-5 flex-1 rounded border transition-all cursor-pointer ${
+                    isSelectedBg
+                      ? "ring-2 ring-indigo-500 ring-offset-1 border-gray-400 scale-105 shadow-xs"
+                      : "border-gray-300 hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: c }}
+                  title={`1クリックで背景色を ${c} に設定`}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -88,6 +168,12 @@ export const ColorSection: React.FC<ColorSectionProps> = ({
           label="腕の色をボディより少し暗くする"
           checked={params.darkerArmColor}
           onChange={(checked) => onParamChange("darkerArmColor", checked)}
+        />
+
+        <CheckboxField
+          label="エージェントの影 (シャドウ) を有効化"
+          checked={params.shadowEnable}
+          onChange={(checked) => onParamChange("shadowEnable", checked)}
         />
       </div>
 

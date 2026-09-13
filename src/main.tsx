@@ -129,6 +129,35 @@ const App: React.FC = () => {
       setParams(updated);
       paramsRef.current = updated;
 
+      // Dynamic color updates without resetting simulation
+      if (key === "uniformColorHex" && typeof val === "string") {
+        if (engineRef.current) {
+          engineRef.current.applyUniformColor(val, updated.darkerArmColor);
+          engineRef.current.currentParams = updated;
+        }
+        pushStateToHistory(updated);
+        return;
+      }
+
+      if (
+        (key === "darkerArmColor" || key === "uniformColor") &&
+        updated.uniformColor
+      ) {
+        if (engineRef.current) {
+          const colorToUse =
+            updated.uniformColorHex ||
+            updated.availableObjectColors[0] ||
+            "#A6171C";
+          engineRef.current.applyUniformColor(
+            colorToUse,
+            updated.darkerArmColor,
+          );
+          engineRef.current.currentParams = updated;
+        }
+        pushStateToHistory(updated);
+        return;
+      }
+
       // Keys that require simulation regeneration
       const structuralKeys: (keyof SwarmParameters)[] = [
         "agentCount",
@@ -140,7 +169,6 @@ const App: React.FC = () => {
         "stiffness",
         "paletteIndex",
         "uniformColor",
-        "darkerArmColor",
       ];
 
       if (structuralKeys.includes(key)) {
