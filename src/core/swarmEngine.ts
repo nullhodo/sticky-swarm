@@ -181,8 +181,8 @@ export class SwarmEngine {
 
     const compositeAgent = Matter.Body.create({
       parts: bodyPartsArray,
-      frictionAir: 0.02,
-      restitution: 0.8,
+      frictionAir: 0.025,
+      restitution: 0.3,
     });
 
     const colors =
@@ -604,23 +604,18 @@ export class SwarmEngine {
         continue;
       }
 
-      // Strong angular restoration towards currentAngleDiff
+      // Damped, smooth angular alignment (critical damping: no overshoot or spinning buildup)
       const targetWorldAngleB = bodyA.angle + cw.currentAngleDiff;
       let angleErrorB = targetWorldAngleB - bodyB.angle;
       while (angleErrorB > Math.PI) angleErrorB -= 2 * Math.PI;
       while (angleErrorB < -Math.PI) angleErrorB += 2 * Math.PI;
 
-      const rotCorr = 0.25;
-      Matter.Body.setAngularVelocity(
-        bodyB,
-        bodyA.angularVelocity + angleErrorB * rotCorr,
-      );
-      Matter.Body.setAngularVelocity(
-        bodyA,
-        bodyA.angularVelocity - angleErrorB * (rotCorr * 0.5),
-      );
+      const desiredAngVelB =
+        bodyA.angularVelocity * 0.85 + angleErrorB * 0.12;
+      Matter.Body.setAngularVelocity(bodyB, desiredAngVelB);
+      Matter.Body.setAngularVelocity(bodyA, bodyA.angularVelocity * 0.92);
 
-      // Positional restoration towards target alignment position
+      // Positional alignment with smooth approach damping (no runaway velocity injection)
       const targetWorldAngleToB = bodyA.angle + cw.currentLocalAngleToB;
       const targetDist = cw.constraint.length || cw.targetDistance;
       const desiredPosX =
@@ -630,15 +625,16 @@ export class SwarmEngine {
 
       const errX = desiredPosX - bodyB.position.x;
       const errY = desiredPosY - bodyB.position.y;
-      const posCorr = 0.2;
 
+      const targetVx = bodyA.velocity.x * 0.85 + errX * 0.12;
+      const targetVy = bodyA.velocity.y * 0.85 + errY * 0.12;
       Matter.Body.setVelocity(bodyB, {
-        x: bodyB.velocity.x + errX * posCorr,
-        y: bodyB.velocity.y + errY * posCorr,
+        x: targetVx,
+        y: targetVy,
       });
       Matter.Body.setVelocity(bodyA, {
-        x: bodyA.velocity.x - errX * (posCorr * 0.5),
-        y: bodyA.velocity.y - errY * (posCorr * 0.5),
+        x: bodyA.velocity.x * 0.95,
+        y: bodyA.velocity.y * 0.95,
       });
     }
   }
@@ -755,29 +751,31 @@ export class SwarmEngine {
 
     const compoundBody = Matter.Body.create({
       parts: newBodies,
-      frictionAir: 0.02,
-      restitution: 0.8,
+      frictionAir: 0.035,
+      restitution: 0.2,
     });
 
-    // Conservation of momentum
+    // Inelastic fusion: kinetic energy is partially dissipated into the rigid bond
     const totalMass = agentA.physicsBody.mass + agentB.physicsBody.mass;
     if (totalMass > 0) {
-      Matter.Body.setVelocity(compoundBody, {
-        x:
-          (agentA.physicsBody.velocity.x * agentA.physicsBody.mass +
-            agentB.physicsBody.velocity.x * agentB.physicsBody.mass) /
-          totalMass,
-        y:
-          (agentA.physicsBody.velocity.y * agentA.physicsBody.mass +
-            agentB.physicsBody.velocity.y * agentB.physicsBody.mass) /
-          totalMass,
-      });
-      Matter.Body.setAngularVelocity(
-        compoundBody,
+      const mergedVx =
+        (agentA.physicsBody.velocity.x * agentA.physicsBody.mass +
+          agentB.physicsBody.velocity.x * agentB.physicsBody.mass) /
+        totalMass;
+      const mergedVy =
+        (agentA.physicsBody.velocity.y * agentA.physicsBody.mass +
+          agentB.physicsBody.velocity.y * agentB.physicsBody.mass) /
+        totalMass;
+      const mergedAngVel =
         (agentA.physicsBody.angularVelocity +
           agentB.physicsBody.angularVelocity) /
-          2,
-      );
+        2;
+
+      Matter.Body.setVelocity(compoundBody, {
+        x: mergedVx * 0.7,
+        y: mergedVy * 0.7,
+      });
+      Matter.Body.setAngularVelocity(compoundBody, mergedAngVel * 0.5);
     }
 
     // Set renderPartIndex on compoundBody.parts
@@ -915,8 +913,16 @@ export class SwarmEngine {
       if (!isAligning) {
         const nTorque =
           this.noiseFunction(agentData.noiseOffsetTorque) - 0.5;
+        // Dampen torque for larger compound bodies so massive structures don't spin like tops
+        const massDampFactor =
+          1.0 / Math.sqrt(Math.max(1, body.parts.length / 4));
         const torqueAmount =
-          nTorque * 1.5 * speedMultiplier * rotSpeedMultiplier * body.mass;
+          nTorque *
+          1.5 *
+          speedMultiplier *
+          rotSpeedMultiplier *
+          body.mass *
+          massDampFactor;
         body.torque += torqueAmount;
       }
 
@@ -999,6 +1005,32 @@ export class SwarmEngine {
     }
   }
 
+  private clampAgentVelocities(): void {
+    const maxSpeed = 5.0 * Math.max(1, this.currentParams.movementSpeed);
+    const maxAngularSpeed =
+      0.12 * Math.max(1, this.currentParams.rotationSpeed);
+
+    for (let i = 0; i < this.agents.length; i++) {
+      const body = this.agents[i].physicsBody;
+      const speedSq =
+        body.velocity.x * body.velocity.x +
+        body.velocity.y * body.velocity.y;
+      if (speedSq > maxSpeed * maxSpeed) {
+        const factor = maxSpeed / Math.sqrt(speedSq);
+        Matter.Body.setVelocity(body, {
+          x: body.velocity.x * factor,
+          y: body.velocity.y * factor,
+        });
+      }
+      if (Math.abs(body.angularVelocity) > maxAngularSpeed) {
+        Matter.Body.setAngularVelocity(
+          body,
+          Math.sign(body.angularVelocity) * maxAngularSpeed,
+        );
+      }
+    }
+  }
+
   public step(params: SwarmParameters): void {
     this.currentParams = params;
     Matter.Engine.update(this.engine, 1000 / 60);
@@ -1007,5 +1039,6 @@ export class SwarmEngine {
     this.applyRandomForcesToAgents();
     this.processConnections();
     this.keepAgentsWithinBounds();
+    this.clampAgentVelocities();
   }
 }
