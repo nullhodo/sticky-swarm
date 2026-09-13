@@ -19,6 +19,7 @@ import {
   LOGICAL_SPACE_WIDTH,
   SwarmEngine,
 } from "./core/swarmEngine";
+import { renderSwarmScene } from "./core/swarmRenderer";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import "./index.css";
 import {
@@ -318,11 +319,15 @@ const App: React.FC = () => {
         try {
           const raw = readEvent.target?.result as string;
           const parsed = parseJsoncContent(raw);
+          const merged: SwarmParameters = {
+            ...paramsRef.current,
+            ...parsed,
+          };
           isRestoringHistoryRef.current = true;
-          setParams(parsed);
-          paramsRef.current = parsed;
+          setParams(merged);
+          paramsRef.current = merged;
           handleRestart();
-          pushStateToHistory(parsed);
+          pushStateToHistory(merged);
           setTimeout(() => {
             isRestoringHistoryRef.current = false;
           }, 50);
@@ -420,162 +425,10 @@ const App: React.FC = () => {
         // Step physics simulation
         engine.step(currentParams);
 
-        // Render viewport
-        p.background(currentParams.backgroundColor);
-
-        const scaleFactor = Math.min(
-          p.width / LOGICAL_SPACE_WIDTH,
-          p.height / LOGICAL_SPACE_HEIGHT,
-        );
-        const offsetX = (p.width - LOGICAL_SPACE_WIDTH * scaleFactor) / 2;
-        const offsetY =
-          (p.height - LOGICAL_SPACE_HEIGHT * scaleFactor) / 2;
-
-        p.push();
-        p.translate(offsetX, offsetY);
-        p.scale(scaleFactor);
-
-        // Draw connections
-        p.stroke(255, 100);
-        p.strokeWeight(2);
-        for (let i = 0; i < engine.activeConstraints.length; i++) {
-          const c = engine.activeConstraints[i].constraint;
-          if (c.bodyA && c.bodyB) {
-            p.line(
-              c.bodyA.position.x,
-              c.bodyA.position.y,
-              c.bodyB.position.x,
-              c.bodyB.position.y,
-            );
-          }
-        }
-
-        // Draw agents
-        p.noStroke();
-        const debugMode = currentParams.debugMode;
-        const debugVectors = currentParams.debugVectors;
-
-        for (let i = 0; i < engine.agents.length; i++) {
-          const agent = engine.agents[i];
-          const body = agent.physicsBody;
-
-          p.push();
-          p.translate(body.position.x, body.position.y);
-          p.rotate(body.angle);
-
-          if (debugMode) {
-            p.stroke(0, 255, 0);
-            p.strokeWeight(1.5);
-          } else {
-            p.noStroke();
-          }
-
-          for (let j = 0; j < agent.renderParts.length; j++) {
-            const rp = agent.renderParts[j];
-            p.push();
-            p.translate(rp.localX, rp.localY);
-            p.rotate(rp.localAngle);
-            p.fill(rp.color);
-
-            if (rp.type === "circle" && rp.radius) {
-              p.circle(0, 0, rp.radius * 2);
-            } else if (rp.type === "rect" && rp.width && rp.height) {
-              p.rectMode(p.CENTER);
-              p.rect(0, 0, rp.width, rp.height);
-            }
-            p.pop();
-          }
-          p.pop();
-
-          // Motion & Force vector arrows in debug mode
-          if (debugMode && debugVectors) {
-            // Velocity Vector (Cyan: 動き・速度)
-            drawArrow(
-              p,
-              body.position.x,
-              body.position.y,
-              body.velocity.x * 12,
-              body.velocity.y * 12,
-              "#00E5FF",
-              4.5,
-              12,
-            );
-
-            // Force Vector (Coral/Orange: 加わる力)
-            if (agent.lastAppliedForce) {
-              drawArrow(
-                p,
-                body.position.x,
-                body.position.y,
-                agent.lastAppliedForce.x * 3000,
-                agent.lastAppliedForce.y * 3000,
-                "#FF5722",
-                4.5,
-                12,
-              );
-            }
-          }
-        }
-
-        p.pop();
-
-        // Debug HUD overlay
-        if (debugMode) {
-          p.push();
-          const hudX = p.width - 240;
-          const hudY = 16;
-          p.fill(0, 0, 0, 180);
-          p.stroke(255, 255, 255, 40);
-          p.strokeWeight(1);
-          p.rect(hudX, hudY, 224, debugVectors ? 135 : 64, 6);
-
-          p.noStroke();
-          p.fill(255);
-          p.textSize(12);
-          p.textAlign(p.LEFT, p.TOP);
-          p.text(`Agents: ${engine.agents.length}`, hudX + 12, hudY + 10);
-          p.text(
-            `Constraints: ${engine.activeConstraints.length}`,
-            hudX + 12,
-            hudY + 28,
-          );
-
-          if (debugVectors) {
-            // Cyan: Velocity
-            p.stroke("#00E5FF");
-            p.strokeWeight(3.5);
-            p.line(hudX + 12, hudY + 54, hudX + 28, hudY + 54);
-            p.noStroke();
-            p.fill("#00E5FF");
-            p.text("動き・速度 (Velocity)", hudX + 34, hudY + 48);
-
-            // Coral: Force
-            p.stroke("#FF5722");
-            p.strokeWeight(3.5);
-            p.line(hudX + 12, hudY + 74, hudX + 28, hudY + 74);
-            p.noStroke();
-            p.fill("#FF5722");
-            p.text("加わる力 (Force)", hudX + 34, hudY + 68);
-
-            // White: Constraint line
-            p.stroke(255, 180);
-            p.strokeWeight(2);
-            p.line(hudX + 12, hudY + 94, hudX + 28, hudY + 94);
-            p.noStroke();
-            p.fill(255);
-            p.text("接着バネ (Constraint)", hudX + 34, hudY + 88);
-
-            // Green: Hull
-            p.stroke(0, 255, 0);
-            p.strokeWeight(1.5);
-            p.noFill();
-            p.rect(hudX + 12, hudY + 112, 14, 10);
-            p.noStroke();
-            p.fill(0, 255, 0);
-            p.text("剛体 (Collision Hull)", hudX + 34, hudY + 110);
-          }
-          p.pop();
-        }
+        // Render viewport with unified renderer
+        renderSwarmScene(p, engine, p.width, p.height, currentParams, {
+          drawDebug: true,
+        });
       };
     };
 
@@ -614,45 +467,7 @@ const App: React.FC = () => {
   );
 };
 
-function drawArrow(
-  p: p5,
-  fromX: number,
-  fromY: number,
-  vecX: number,
-  vecY: number,
-  colorStr: string,
-  strokeW = 4.5,
-  headSize = 12,
-): void {
-  const lenSq = vecX * vecX + vecY * vecY;
-  if (lenSq < 4) return; // Don't draw tiny jitter vectors
-
-  const toX = fromX + vecX;
-  const toY = fromY + vecY;
-
-  p.push();
-  p.stroke(colorStr);
-  p.strokeWeight(strokeW);
-  p.line(fromX, fromY, toX, toY);
-
-  const angle = Math.atan2(vecY, vecX);
-  p.push();
-  p.translate(toX, toY);
-  p.rotate(angle);
-  p.fill(colorStr);
-  p.noStroke();
-  p.triangle(
-    0,
-    0,
-    -headSize,
-    -headSize * 0.45,
-    -headSize,
-    headSize * 0.45,
-  );
-  p.pop();
-
-  p.pop();
-}
+export default App;
 
 const rootElement = document.getElementById("root");
 if (rootElement) {

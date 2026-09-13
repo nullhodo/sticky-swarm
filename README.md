@@ -39,7 +39,7 @@ sticky-swarm/
 ├── README.md
 ├── output/                   - 画像・動画・設定の出力先ディレクトリ
 └── src/
-    ├── main.tsx              - アプリケーションマウントおよび p5 スケッチ描画
+    ├── main.tsx              - アプリケーションマウントおよび p5 ライフサイクル
     ├── index.css
     ├── vite-env.d.ts
     ├── types/
@@ -49,12 +49,19 @@ sticky-swarm/
     ├── state/
     │   └── swarmStore.ts     - Jotai による状態管理 (パラメータ、履歴、録画状態)
     ├── core/
-    │   ├── swarmEngine.ts    - Matter.js による物理演算・接着・複合剛体化ロジック
+    │   ├── swarmEngine.ts    - 物理ワールド管理・シミュレーション進行オーケストレータ
+    │   ├── agentBuilder.ts   - エージェントパーツ構成および剛体生成
+    │   ├── dockingSolver.ts  - 腕同士・ボディ同士のドッキング相対幾何計算
+    │   ├── forces.ts         - パーリンノイズ外力、マウス操作、境界反発、速度制限
+    │   ├── compoundMerger.ts - 複合剛体 (Compound Body) への非弾性融合
+    │   ├── swarmRenderer.ts  - エージェント・拘束・デバッグベクトルの統合描画
     │   ├── recorder.ts       - mp4-muxer / WebCodecs による 60fps MP4 録画マネージャー
     │   └── exporter.ts       - 高解像度画像 / SVG ベクター / JSONC 設定の書き出し
     ├── components/
     │   ├── ControlPanel.tsx  - 設定パネル UI コンテナ
-    │   └── RecordingOverlay.tsx - 録画中 HUD オーバーレイ
+    │   ├── RecordingOverlay.tsx - 録画中 HUD オーバーレイ
+    │   ├── ui/               - 再利用可能な UI プリミティブ (Slider, Checkbox, Select, Accordion)
+    │   └── panel/            - 設定セクション群 (System, Agent, Connection, Interaction, Color, Export)
     ├── hooks/
     │   └── useKeyboardShortcuts.ts - グローバルキーボードショートカット
     └── utils/

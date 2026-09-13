@@ -2,77 +2,8 @@ import type p5 from "p5";
 import { PARAMETER_COMMENTS_MAP } from "../constants/palettes";
 import type { SwarmParameters } from "../types/swarm";
 import { getFormattedDate } from "../utils/date";
-import {
-  LOGICAL_SPACE_HEIGHT,
-  LOGICAL_SPACE_WIDTH,
-  type SwarmEngine,
-} from "./swarmEngine";
-
-function drawSwarmToGraphics(
-  graphics: p5.Graphics,
-  engine: SwarmEngine,
-  targetWidth: number,
-  targetHeight: number,
-  params: SwarmParameters,
-): void {
-  graphics.background(params.backgroundColor);
-
-  const scaleFactor = Math.min(
-    targetWidth / LOGICAL_SPACE_WIDTH,
-    targetHeight / LOGICAL_SPACE_HEIGHT,
-  );
-  const offsetX = (targetWidth - LOGICAL_SPACE_WIDTH * scaleFactor) / 2;
-  const offsetY = (targetHeight - LOGICAL_SPACE_HEIGHT * scaleFactor) / 2;
-
-  graphics.push();
-  graphics.translate(offsetX, offsetY);
-  graphics.scale(scaleFactor);
-
-  // Draw connections
-  graphics.stroke(255, 100);
-  graphics.strokeWeight(2);
-  for (let i = 0; i < engine.activeConstraints.length; i++) {
-    const c = engine.activeConstraints[i].constraint;
-    if (c.bodyA && c.bodyB) {
-      graphics.line(
-        c.bodyA.position.x,
-        c.bodyA.position.y,
-        c.bodyB.position.x,
-        c.bodyB.position.y,
-      );
-    }
-  }
-
-  // Draw agents
-  graphics.noStroke();
-  for (let i = 0; i < engine.agents.length; i++) {
-    const agent = engine.agents[i];
-    const body = agent.physicsBody;
-
-    graphics.push();
-    graphics.translate(body.position.x, body.position.y);
-    graphics.rotate(body.angle);
-
-    for (let j = 0; j < agent.renderParts.length; j++) {
-      const rp = agent.renderParts[j];
-      graphics.push();
-      graphics.translate(rp.localX, rp.localY);
-      graphics.rotate(rp.localAngle);
-      graphics.fill(rp.color);
-
-      if (rp.type === "circle" && rp.radius) {
-        graphics.circle(0, 0, rp.radius * 2);
-      } else if (rp.type === "rect" && rp.width && rp.height) {
-        graphics.rectMode(graphics.CENTER);
-        graphics.rect(0, 0, rp.width, rp.height);
-      }
-      graphics.pop();
-    }
-    graphics.pop();
-  }
-
-  graphics.pop();
-}
+import type { SwarmEngine } from "./swarmEngine";
+import { renderSwarmScene } from "./swarmRenderer";
 
 /**
  * Export high-resolution raster image (JPEG) and accompanying JSONC settings.
@@ -87,13 +18,7 @@ export function exportHighResolutionImage(
   const targetHeight = (p5Instance.height || 900) * multiplier;
 
   const offscreen = p5Instance.createGraphics(targetWidth, targetHeight);
-  drawSwarmToGraphics(
-    offscreen,
-    engine,
-    targetWidth,
-    targetHeight,
-    params,
-  );
+  renderSwarmScene(offscreen, engine, targetWidth, targetHeight, params);
 
   const timestamp = getFormattedDate();
   const baseFileName = `StickyAgentSwarm_${timestamp}_${Math.floor(targetWidth)}x${Math.floor(targetHeight)}`;
@@ -126,13 +51,7 @@ export function exportSvgVector(
     p5Instance.SVG,
   );
 
-  drawSwarmToGraphics(
-    svgGraphics,
-    engine,
-    targetWidth,
-    targetHeight,
-    params,
-  );
+  renderSwarmScene(svgGraphics, engine, targetWidth, targetHeight, params);
 
   const timestamp = getFormattedDate();
   const filename = `StickyAgentSwarm_${timestamp}_vector.svg`;
@@ -185,11 +104,12 @@ export function exportJsoncFile(
 }
 
 /**
- * Parse JSON or JSONC file content into SwarmParameters.
+ * Parse JSONC formatted string into SwarmParameters object, ignoring comments.
  */
-export function parseJsoncContent(rawText: string): SwarmParameters {
-  const cleaned = rawText
-    .replace(/\/\/.*$/gm, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "");
-  return JSON.parse(cleaned) as SwarmParameters;
+export function parseJsoncContent(
+  jsoncString: string,
+): Partial<SwarmParameters> {
+  // Strip single-line comments // ...
+  const cleaned = jsoncString.replace(/\/\/.*$/gm, "");
+  return JSON.parse(cleaned);
 }
