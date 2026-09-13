@@ -260,26 +260,38 @@ const App: React.FC = () => {
       Math.random() * PREDEFINED_PALETTES.length,
     );
     const selectedPalette = PREDEFINED_PALETTES[randomPaletteIdx];
-    const randomBg =
-      selectedPalette.colors[
-        Math.floor(Math.random() * selectedPalette.colors.length)
-      ];
+    const bgIndex = Math.floor(
+      Math.random() * selectedPalette.colors.length,
+    );
+    const randomBg = selectedPalette.colors[bgIndex];
+
     const availableColors = selectedPalette.colors.filter(
       (c) => c.toUpperCase() !== randomBg.toUpperCase(),
     );
+    const candidateColors =
+      availableColors.length > 0
+        ? availableColors
+        : selectedPalette.colors;
+
+    const randomAgentColor =
+      candidateColors[Math.floor(Math.random() * candidateColors.length)];
 
     const updated: SwarmParameters = {
       ...paramsRef.current,
       paletteIndex: randomPaletteIdx,
       backgroundColor: randomBg,
-      availableObjectColors:
-        availableColors.length > 0
-          ? availableColors
-          : ["#FFFFFF", "#000000"],
+      availableObjectColors: candidateColors,
+      uniformColorHex: randomAgentColor,
     };
 
     setParams(updated);
     paramsRef.current = updated;
+    if (engineRef.current && updated.uniformColor) {
+      engineRef.current.applyUniformColor(
+        randomAgentColor,
+        updated.darkerArmColor,
+      );
+    }
     handleRestart();
     pushStateToHistory(updated);
   }, [setParams, handleRestart, pushStateToHistory]);
