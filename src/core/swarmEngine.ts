@@ -157,7 +157,7 @@ export class SwarmEngine {
         ) {
           shouldConnect = true;
         } else if (
-          rule === "arm_arm" &&
+          (rule === "arm_arm" || rule === "arm_tip_any_angle") &&
           labelA === "arm" &&
           labelB === "arm"
         ) {

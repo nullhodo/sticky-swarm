@@ -113,7 +113,8 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
   armThickness: "腕の太さ",
   armPattern:
     "腕の配置パターン (one_right, left_right, right_top, right_two, three_120, four_90, six_60, two_random_cardinal)",
-  targetRule: "接着する対象のルール (any, body_body, arm_arm, arm_body)",
+  targetRule:
+    "接着する対象のルール (any, body_body, arm_arm, arm_tip_any_angle, arm_body)",
   stiffness: "接着時のバネの硬さ",
   disconnectionEnable: "接着の古さに応じて時間経過で確率的に切断するか",
   disconnectionMinAge: "切断が発生し始めるまでの猶予時間 (秒)",

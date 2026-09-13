@@ -19,7 +19,8 @@ interface ConnectionSectionProps {
 const TARGET_RULE_OPTIONS = [
   { label: "どこでも接着 (Any)", value: "any" },
   { label: "ボディ同士のみ (Body to Body)", value: "body_body" },
-  { label: "腕同士のみ (Arm to Arm)", value: "arm_arm" },
+  { label: "腕同士のみ (一直線)", value: "arm_arm" },
+  { label: "腕の先端のみ ※角度不問", value: "arm_tip_any_angle" },
   { label: "腕とボディのみ (Arm to Body)", value: "arm_body" },
 ];
 

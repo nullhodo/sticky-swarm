@@ -174,6 +174,7 @@ const App: React.FC = () => {
       "any",
       "body_body",
       "arm_arm",
+      "arm_tip_any_angle",
       "arm_body",
     ];
 

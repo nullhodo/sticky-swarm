@@ -10,7 +10,12 @@ export type ArmPattern =
   | "six_60"
   | "two_random_cardinal";
 
-export type TargetRule = "any" | "body_body" | "arm_arm" | "arm_body";
+export type TargetRule =
+  | "any"
+  | "body_body"
+  | "arm_arm"
+  | "arm_tip_any_angle"
+  | "arm_body";
 
 export type InteractionMode = "attract" | "repel";
 

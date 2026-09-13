@@ -99,24 +99,65 @@ export function calculateDockingTarget(
     const armAWorldX = posA.x + (rpA.localX * cosA - rpA.localY * sinA);
     const armAWorldY = posA.y + (rpA.localX * sinA + rpA.localY * cosA);
 
-    // Collinear tip-to-tip orientation: arm B points in exact opposite direction
-    const targetArmBWorldAngle = armAWorldAngle + Math.PI;
-    targetAngleB = targetArmBWorldAngle - rpB.localAngle;
-    targetAngleDiff = targetAngleB - angleA;
+    if (params.targetRule === "arm_tip_any_angle") {
+      // Free relative angle: retain current orientation of Agent B
+      targetAngleB = rigidBodyB.angle;
+      targetAngleDiff = targetAngleB - angleA;
 
-    // Tip A meets Tip B seamlessly
-    const targetArmBWorldX =
-      armAWorldX + Math.cos(armAWorldAngle) * armLen;
-    const targetArmBWorldY =
-      armAWorldY + Math.sin(armAWorldAngle) * armLen;
+      const cosB = Math.cos(targetAngleB);
+      const sinB = Math.sin(targetAngleB);
 
-    const cosB = Math.cos(targetAngleB);
-    const sinB = Math.sin(targetAngleB);
-    const armBOffset_x = rpB.localX * cosB - rpB.localY * sinB;
-    const armBOffset_y = rpB.localX * sinB + rpB.localY * cosB;
+      const armBWorldAngle = targetAngleB + rpB.localAngle;
+      const armBWorldX =
+        rigidBodyB.position.x + (rpB.localX * cosB - rpB.localY * sinB);
+      const armBWorldY =
+        rigidBodyB.position.y + (rpB.localX * sinB + rpB.localY * cosB);
 
-    targetAgentB_posX = targetArmBWorldX - armBOffset_x;
-    targetAgentB_posY = targetArmBWorldY - armBOffset_y;
+      // Tip A (outer tip of arm A)
+      const tipAX = armAWorldX + Math.cos(armAWorldAngle) * (armLen / 2);
+      const tipAY = armAWorldY + Math.sin(armAWorldAngle) * (armLen / 2);
+
+      // Tip B (outer tip of arm B)
+      const tipBX = armBWorldX + Math.cos(armBWorldAngle) * (armLen / 2);
+      const tipBY = armBWorldY + Math.sin(armBWorldAngle) * (armLen / 2);
+
+      const tipDist = Math.hypot(tipAX - tipBX, tipAY - tipBY);
+      // Require collision to occur near the tips (within 1.25x arm length)
+      if (tipDist > armLen * 1.25) {
+        return null;
+      }
+
+      // Tip of Arm B must meet Tip of Arm A seamlessly at any relative angle
+      const targetArmBWorldX =
+        tipAX - Math.cos(armBWorldAngle) * (armLen / 2);
+      const targetArmBWorldY =
+        tipAY - Math.sin(armBWorldAngle) * (armLen / 2);
+
+      const armBOffset_x = rpB.localX * cosB - rpB.localY * sinB;
+      const armBOffset_y = rpB.localX * sinB + rpB.localY * cosB;
+
+      targetAgentB_posX = targetArmBWorldX - armBOffset_x;
+      targetAgentB_posY = targetArmBWorldY - armBOffset_y;
+    } else {
+      // Collinear tip-to-tip orientation: arm B points in exact opposite direction
+      const targetArmBWorldAngle = armAWorldAngle + Math.PI;
+      targetAngleB = targetArmBWorldAngle - rpB.localAngle;
+      targetAngleDiff = targetAngleB - angleA;
+
+      // Tip A meets Tip B seamlessly
+      const targetArmBWorldX =
+        armAWorldX + Math.cos(armAWorldAngle) * armLen;
+      const targetArmBWorldY =
+        armAWorldY + Math.sin(armAWorldAngle) * armLen;
+
+      const cosB = Math.cos(targetAngleB);
+      const sinB = Math.sin(targetAngleB);
+      const armBOffset_x = rpB.localX * cosB - rpB.localY * sinB;
+      const armBOffset_y = rpB.localX * sinB + rpB.localY * cosB;
+
+      targetAgentB_posX = targetArmBWorldX - armBOffset_x;
+      targetAgentB_posY = targetArmBWorldY - armBOffset_y;
+    }
   } else if (labelA === "arm" && labelB === "body") {
     const armAWorldAngle = angleA + rpA.localAngle;
     const armAWorldX = posA.x + (rpA.localX * cosA - rpA.localY * sinA);
