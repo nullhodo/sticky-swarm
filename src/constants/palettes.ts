@@ -97,6 +97,10 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
   uniformColorHex: "#A6171C",
   darkerArmColor: true,
   shadowEnable: false,
+  shadowBlur: 12,
+  shadowOffsetX: 3,
+  shadowOffsetY: 5,
+  shadowOpacity: 0.3,
 
   exportScaleMultiplier: 2,
 };
@@ -138,5 +142,9 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
   uniformColorHex: "全エージェント統一時に使用するボディの色",
   darkerArmColor: "腕の色をボディより少し暗い色にする",
   shadowEnable: "エージェントにシャドウ（影）を描画する",
+  shadowBlur: "ドロップシャドウのぼかし半径 (px)",
+  shadowOffsetX: "ドロップシャドウのX軸オフセット (px)",
+  shadowOffsetY: "ドロップシャドウのY軸オフセット (px)",
+  shadowOpacity: "ドロップシャドウの不透明度 (0.0〜1.0)",
   exportScaleMultiplier: "画像書き出し時の解像度倍率",
 };

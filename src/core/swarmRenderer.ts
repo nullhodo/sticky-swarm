@@ -86,19 +86,26 @@ function drawSwarmAgents(
   target: RenderTarget,
   agents: SwarmAgent[],
   debugMode = false,
-  shadowEnable = false,
+  shadowParams?: {
+    enable: boolean;
+    blur?: number;
+    offsetX?: number;
+    offsetY?: number;
+    opacity?: number;
+  },
 ): void {
   const ctx = (
     target as unknown as { drawingContext?: CanvasRenderingContext2D }
   ).drawingContext;
   const applyShadow =
-    shadowEnable && ctx && typeof ctx.shadowColor === "string";
+    shadowParams?.enable && ctx && typeof ctx.shadowColor === "string";
 
   if (applyShadow && ctx) {
-    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetX = 3;
-    ctx.shadowOffsetY = 5;
+    const opacity = Math.max(0, Math.min(1, shadowParams.opacity ?? 0.3));
+    ctx.shadowColor = `rgba(0, 0, 0, ${opacity})`;
+    ctx.shadowBlur = shadowParams.blur ?? 12;
+    ctx.shadowOffsetX = shadowParams.offsetX ?? 3;
+    ctx.shadowOffsetY = shadowParams.offsetY ?? 5;
   }
 
   for (let i = 0; i < agents.length; i++) {
@@ -315,12 +322,13 @@ export function renderSwarmScene(
       params.disconnectionMinAge,
     );
   }
-  drawSwarmAgents(
-    target,
-    engine.agents,
-    params.debugMode,
-    params.shadowEnable,
-  );
+  drawSwarmAgents(target, engine.agents, params.debugMode, {
+    enable: params.shadowEnable,
+    blur: params.shadowBlur,
+    offsetX: params.shadowOffsetX,
+    offsetY: params.shadowOffsetY,
+    opacity: params.shadowOpacity,
+  });
 
   if (shouldDrawDebug && params.debugMode && params.debugVectors) {
     drawDebugVectors(target, engine.agents);

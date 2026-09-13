@@ -5,6 +5,7 @@ import type { SwarmParameters } from "../../types/swarm";
 import { AccordionSection } from "../ui/AccordionSection";
 import { CheckboxField } from "../ui/CheckboxField";
 import { SelectField } from "../ui/SelectField";
+import { SliderField } from "../ui/SliderField";
 
 interface ColorSectionProps {
   params: SwarmParameters;
@@ -175,6 +176,49 @@ export const ColorSection: React.FC<ColorSectionProps> = ({
           checked={params.shadowEnable}
           onChange={(checked) => onParamChange("shadowEnable", checked)}
         />
+
+        {params.shadowEnable && (
+          <div className="pl-3.5 pr-1 py-1.5 space-y-2 border-l-2 border-amber-300 bg-amber-50/40 rounded-r text-[11px]">
+            <SliderField
+              label="影のぼかし半径 (Blur)"
+              value={params.shadowBlur ?? 12}
+              displayValue={`${params.shadowBlur ?? 12}px`}
+              min={0}
+              max={40}
+              step={1}
+              onChange={(v) => onParamChange("shadowBlur", v)}
+            />
+            <SliderField
+              label="X方向オフセット"
+              value={params.shadowOffsetX ?? 3}
+              displayValue={`${params.shadowOffsetX ?? 3}px`}
+              min={-25}
+              max={25}
+              step={1}
+              onChange={(v) => onParamChange("shadowOffsetX", v)}
+            />
+            <SliderField
+              label="Y方向オフセット"
+              value={params.shadowOffsetY ?? 5}
+              displayValue={`${params.shadowOffsetY ?? 5}px`}
+              min={-25}
+              max={25}
+              step={1}
+              onChange={(v) => onParamChange("shadowOffsetY", v)}
+            />
+            <SliderField
+              label="影の不透明度 (Opacity)"
+              value={params.shadowOpacity ?? 0.3}
+              displayValue={
+                Math.round((params.shadowOpacity ?? 0.3) * 100) / 100
+              }
+              min={0.05}
+              max={1.0}
+              step={0.05}
+              onChange={(v) => onParamChange("shadowOpacity", v)}
+            />
+          </div>
+        )}
       </div>
 
       <button

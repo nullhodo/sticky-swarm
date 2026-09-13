@@ -69,6 +69,10 @@ export interface SwarmParameters {
   uniformColorHex?: string;
   darkerArmColor: boolean;
   shadowEnable: boolean;
+  shadowBlur: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  shadowOpacity: number;
 
   // Export
   exportScaleMultiplier: number;
