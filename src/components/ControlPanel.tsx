@@ -7,6 +7,7 @@ import {
   SettingsIcon,
   Undo2Icon,
   XIcon,
+  ZoomInIcon,
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -41,6 +42,10 @@ interface Props {
   onStopRecord: () => void;
   onExportJsonc: () => void;
   onImportJsonc: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  zoomDisplay: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetZoom: () => void;
 }
 
 export const ControlPanel: React.FC<Props> = ({
@@ -56,6 +61,10 @@ export const ControlPanel: React.FC<Props> = ({
   onStopRecord,
   onExportJsonc,
   onImportJsonc,
+  zoomDisplay,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
 }) => {
   const [params] = useAtom(swarmParamsAtom);
   const [isOpen, setIsOpen] = useAtom(isPanelOpenAtom);
@@ -266,6 +275,40 @@ export const ControlPanel: React.FC<Props> = ({
                 onExportJsonc={onExportJsonc}
                 onTriggerImport={() => fileInputRef.current?.click()}
               />
+            </div>
+
+            {/* Panel Footer: Zoom & Display Controls */}
+            <div className="p-2.5 bg-gray-50/95 border-t border-gray-200 flex items-center justify-between text-xs flex-shrink-0">
+              <div className="flex items-center gap-1.5 text-gray-600 font-medium">
+                <ZoomInIcon className="w-3.5 h-3.5 text-gray-500" />
+                <span>キャンバス拡大率</span>
+              </div>
+              <div className="flex items-center gap-1 bg-white border border-gray-300 rounded px-1.5 py-0.5 shadow-xs">
+                <button
+                  type="button"
+                  onClick={onZoomOut}
+                  title="縮小 (ホイール下スクロール)"
+                  className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 font-bold cursor-pointer text-gray-700 transition"
+                >
+                  -
+                </button>
+                <button
+                  type="button"
+                  onClick={onResetZoom}
+                  title="ズーム倍率を等倍にリセット (0キー / ダブルクリック)"
+                  className="px-1.5 py-0.5 font-mono text-[11px] text-gray-700 hover:text-black hover:bg-gray-100 rounded cursor-pointer font-semibold transition"
+                >
+                  {Math.round(zoomDisplay * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick={onZoomIn}
+                  title="拡大 (ホイール上スクロール)"
+                  className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 font-bold cursor-pointer text-gray-700 transition"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

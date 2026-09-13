@@ -598,35 +598,11 @@ const App: React.FC = () => {
         onStopRecord={handleStopRecord}
         onExportJsonc={handleExportJsonc}
         onImportJsonc={handleImportJsonc}
+        zoomDisplay={zoomDisplay}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
       />
-
-      {/* Floating Zoom HUD & Quick Controls */}
-      <div className="absolute bottom-4 right-4 z-30 flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-lg text-white text-xs select-none shadow-lg">
-        <button
-          type="button"
-          onClick={handleZoomOut}
-          title="縮小 (ホイール下スクロール)"
-          className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 transition cursor-pointer font-bold"
-        >
-          -
-        </button>
-        <button
-          type="button"
-          onClick={handleResetZoom}
-          title="ズーム倍率を等倍にリセット (0キー / ダブルクリック)"
-          className="px-2 py-0.5 font-mono text-[11px] text-gray-200 hover:text-white hover:bg-white/20 rounded transition cursor-pointer"
-        >
-          {Math.round(zoomDisplay * 100)}%
-        </button>
-        <button
-          type="button"
-          onClick={handleZoomIn}
-          title="拡大 (ホイール上スクロール)"
-          className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/20 transition cursor-pointer font-bold"
-        >
-          +
-        </button>
-      </div>
 
       <RecordingOverlay onStopRecord={handleStopRecord} />
     </div>
