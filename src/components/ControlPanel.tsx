@@ -396,9 +396,30 @@ export const ControlPanel: React.FC<Props> = ({
                           className="rounded text-indigo-600 focus:ring-0"
                         />
                         <span className="text-gray-700">
-                          物理コリジョン可視化 (デバッグ)
+                          物理デバッグモード (剛体・力・拘束の可視化)
                         </span>
                       </label>
+
+                      {params.debugMode && (
+                        <div className="pl-6 space-y-1 pt-1">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={params.debugVectors}
+                              onChange={(e) =>
+                                onParamChange(
+                                  "debugVectors",
+                                  e.target.checked,
+                                )
+                              }
+                              className="rounded text-indigo-600 focus:ring-0"
+                            />
+                            <span className="text-[11px] text-gray-600">
+                              動き（速度）・加わる力の矢印ベクトル表示
+                            </span>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

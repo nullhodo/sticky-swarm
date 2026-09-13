@@ -25,6 +25,7 @@ export interface SwarmParameters {
   maintainPopulation: boolean;
   spawnRate: number;
   debugMode: boolean;
+  debugVectors: boolean;
 
   // Interaction
   interactionEnable: boolean;
@@ -73,6 +74,7 @@ export interface SwarmAgent {
   noiseOffsetX: number;
   noiseOffsetY: number;
   noiseOffsetTorque: number;
+  lastAppliedForce: { x: number; y: number };
 }
 
 export interface ActiveConstraintWrapper {
@@ -81,6 +83,7 @@ export interface ActiveConstraintWrapper {
   agentAId: string;
   agentBId: string;
   originalLength: number;
+  targetDistance: number;
   alignProgress: number;
   initialLocalAngleToB: number;
   targetLocalAngleToB: number;

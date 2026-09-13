@@ -453,6 +453,7 @@ const App: React.FC = () => {
         // Draw agents
         p.noStroke();
         const debugMode = currentParams.debugMode;
+        const debugVectors = currentParams.debugVectors;
 
         for (let i = 0; i < engine.agents.length; i++) {
           const agent = engine.agents[i];
@@ -464,7 +465,7 @@ const App: React.FC = () => {
 
           if (debugMode) {
             p.stroke(0, 255, 0);
-            p.noFill();
+            p.strokeWeight(1.5);
           } else {
             p.noStroke();
           }
@@ -474,10 +475,7 @@ const App: React.FC = () => {
             p.push();
             p.translate(rp.localX, rp.localY);
             p.rotate(rp.localAngle);
-
-            if (!debugMode) {
-              p.fill(rp.color);
-            }
+            p.fill(rp.color);
 
             if (rp.type === "circle" && rp.radius) {
               p.circle(0, 0, rp.radius * 2);
@@ -488,23 +486,94 @@ const App: React.FC = () => {
             p.pop();
           }
           p.pop();
+
+          // Motion & Force vector arrows in debug mode
+          if (debugMode && debugVectors) {
+            // Velocity Vector (Cyan: 動き・速度)
+            drawArrow(
+              p,
+              body.position.x,
+              body.position.y,
+              body.velocity.x * 12,
+              body.velocity.y * 12,
+              "#00E5FF",
+              4.5,
+              12,
+            );
+
+            // Force Vector (Coral/Orange: 加わる力)
+            if (agent.lastAppliedForce) {
+              drawArrow(
+                p,
+                body.position.x,
+                body.position.y,
+                agent.lastAppliedForce.x * 3000,
+                agent.lastAppliedForce.y * 3000,
+                "#FF5722",
+                4.5,
+                12,
+              );
+            }
+          }
         }
 
         p.pop();
 
-        // Debug HUD
+        // Debug HUD overlay
         if (debugMode) {
           p.push();
-          p.fill(0, 255, 0);
+          const hudX = p.width - 240;
+          const hudY = 16;
+          p.fill(0, 0, 0, 180);
+          p.stroke(255, 255, 255, 40);
+          p.strokeWeight(1);
+          p.rect(hudX, hudY, 224, debugVectors ? 135 : 64, 6);
+
           p.noStroke();
-          p.textSize(16);
-          p.textAlign(p.RIGHT, p.TOP);
-          p.text(`Agents: ${engine.agents.length}`, p.width - 20, 20);
+          p.fill(255);
+          p.textSize(12);
+          p.textAlign(p.LEFT, p.TOP);
+          p.text(`Agents: ${engine.agents.length}`, hudX + 12, hudY + 10);
           p.text(
             `Constraints: ${engine.activeConstraints.length}`,
-            p.width - 20,
-            42,
+            hudX + 12,
+            hudY + 28,
           );
+
+          if (debugVectors) {
+            // Cyan: Velocity
+            p.stroke("#00E5FF");
+            p.strokeWeight(3.5);
+            p.line(hudX + 12, hudY + 54, hudX + 28, hudY + 54);
+            p.noStroke();
+            p.fill("#00E5FF");
+            p.text("動き・速度 (Velocity)", hudX + 34, hudY + 48);
+
+            // Coral: Force
+            p.stroke("#FF5722");
+            p.strokeWeight(3.5);
+            p.line(hudX + 12, hudY + 74, hudX + 28, hudY + 74);
+            p.noStroke();
+            p.fill("#FF5722");
+            p.text("加わる力 (Force)", hudX + 34, hudY + 68);
+
+            // White: Constraint line
+            p.stroke(255, 180);
+            p.strokeWeight(2);
+            p.line(hudX + 12, hudY + 94, hudX + 28, hudY + 94);
+            p.noStroke();
+            p.fill(255);
+            p.text("接着バネ (Constraint)", hudX + 34, hudY + 88);
+
+            // Green: Hull
+            p.stroke(0, 255, 0);
+            p.strokeWeight(1.5);
+            p.noFill();
+            p.rect(hudX + 12, hudY + 112, 14, 10);
+            p.noStroke();
+            p.fill(0, 255, 0);
+            p.text("剛体 (Collision Hull)", hudX + 34, hudY + 110);
+          }
           p.pop();
         }
       };
@@ -544,6 +613,46 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+function drawArrow(
+  p: p5,
+  fromX: number,
+  fromY: number,
+  vecX: number,
+  vecY: number,
+  colorStr: string,
+  strokeW = 4.5,
+  headSize = 12,
+): void {
+  const lenSq = vecX * vecX + vecY * vecY;
+  if (lenSq < 4) return; // Don't draw tiny jitter vectors
+
+  const toX = fromX + vecX;
+  const toY = fromY + vecY;
+
+  p.push();
+  p.stroke(colorStr);
+  p.strokeWeight(strokeW);
+  p.line(fromX, fromY, toX, toY);
+
+  const angle = Math.atan2(vecY, vecX);
+  p.push();
+  p.translate(toX, toY);
+  p.rotate(angle);
+  p.fill(colorStr);
+  p.noStroke();
+  p.triangle(
+    0,
+    0,
+    -headSize,
+    -headSize * 0.45,
+    -headSize,
+    headSize * 0.45,
+  );
+  p.pop();
+
+  p.pop();
+}
 
 const rootElement = document.getElementById("root");
 if (rootElement) {

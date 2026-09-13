@@ -51,6 +51,7 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
   maintainPopulation: true,
   spawnRate: 1.0,
   debugMode: false,
+  debugVectors: true,
 
   interactionEnable: false,
   interactionMode: "attract",
@@ -83,6 +84,7 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
   maintainPopulation: "現在数が初期agentCountを下回った場合のみ登場させる",
   spawnRate: "新たなエージェントが登場する頻度 (1秒あたりの平均登場数)",
   debugMode: "物理エンジンのコリジョンを表示するデバッグモード",
+  debugVectors: "物理演算の動き（速度）や力を矢印ベクトルで可視化する",
   baseRadius: "エージェントの体の半径",
   armLength: "腕の長さ",
   armThickness: "腕の太さ",
