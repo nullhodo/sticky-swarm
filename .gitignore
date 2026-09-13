@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+
+# Generated media outputs
+output/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+*.local
