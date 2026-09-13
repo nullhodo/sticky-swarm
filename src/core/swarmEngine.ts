@@ -28,6 +28,7 @@ export class SwarmEngine {
   public activeConstraints: ActiveConstraintWrapper[] = [];
   public connectedPairsSet = new Set<string>();
   private disconnectionCooldowns = new Map<string, number>();
+  private debugLogCooldowns = new Map<string, number>();
   private agentIdCounter = 0;
 
   private uniformBodyColor: string | null = null;
@@ -65,6 +66,7 @@ export class SwarmEngine {
     this.activeConstraints = [];
     this.connectedPairsSet.clear();
     this.disconnectionCooldowns.clear();
+    this.debugLogCooldowns.clear();
     this.agentIdCounter = 0;
 
     const colors =
@@ -485,6 +487,95 @@ export class SwarmEngine {
       LOGICAL_SPACE_WIDTH,
       LOGICAL_SPACE_HEIGHT,
     );
+
+    if (this.currentParams.debugMode) {
+      this.checkLargeForcesAndRotations();
+    }
+
     clampAgentVelocities(this.agents, this.currentParams);
+  }
+
+  private checkLargeForcesAndRotations(): void {
+    const now = performance.now();
+    const speedThreshold =
+      3.5 * Math.max(1, this.currentParams.movementSpeed);
+    const angularThreshold =
+      0.07 * Math.max(1, this.currentParams.rotationSpeed);
+
+    for (let i = 0; i < this.agents.length; i++) {
+      const agent = this.agents[i];
+      const body = agent.physicsBody;
+
+      const speed = Math.hypot(body.velocity.x, body.velocity.y);
+      const angVel = Math.abs(body.angularVelocity);
+      const forceMag = Math.hypot(
+        agent.lastAppliedForce.x,
+        agent.lastAppliedForce.y,
+      );
+      const acc = forceMag / (body.mass || 1);
+
+      const isHighSpeed = speed > speedThreshold || acc > 0.015;
+      const isHighRotation = angVel > angularThreshold;
+
+      if (isHighSpeed || isHighRotation) {
+        const lastLog = this.debugLogCooldowns.get(agent.id) ?? 0;
+        if (now - lastLog < 800) continue; // Rate-limit to once every 800ms per agent
+
+        this.debugLogCooldowns.set(agent.id, now);
+
+        // Analyze and identify the physical situation
+        let situation = "🌪️ ランダム外力・衝突反動";
+        const cw = this.activeConstraints.find(
+          (c) => c.agentAId === agent.id || c.agentBId === agent.id,
+        );
+
+        if (cw) {
+          if (cw.alignProgress < 1.0) {
+            situation = `🎯 ドッキング引き寄せ (アライメント進捗: ${Math.round(cw.alignProgress * 100)}%)`;
+          } else {
+            situation = `🔗 結合クラスター剛体追従 (拘束ID: ${cw.pairId})`;
+          }
+        } else {
+          // Check if recently disconnected
+          for (const [
+            pairId,
+            cd,
+          ] of this.disconnectionCooldowns.entries()) {
+            if (pairId.includes(agent.id) && cd > 90) {
+              situation = "✂️ 経年切断の離反インパルス";
+              break;
+            }
+          }
+          // Check if near boundaries
+          if (
+            body.position.x < 80 ||
+            body.position.x > LOGICAL_SPACE_WIDTH - 80 ||
+            body.position.y < 80 ||
+            body.position.y > LOGICAL_SPACE_HEIGHT - 80
+          ) {
+            situation = "🔲 画面外周の境界反発力";
+          }
+        }
+
+        const typeLabel =
+          isHighSpeed && isHighRotation
+            ? "巨大な力 & 急激な回転"
+            : isHighSpeed
+              ? "大きな力・速度サージ"
+              : "急激な高速回転";
+
+        const angDeg = (angVel * 180) / Math.PI;
+
+        console.warn(
+          `%c[Swarm Debug]%c ⚠️ ${typeLabel}検知 | %c${agent.id}%c | 状況: %c${situation}%c | 速度: ${speed.toFixed(2)} px/f | 角速度: ${angDeg.toFixed(1)}°/f (ω=${angVel.toFixed(3)}) | 力/質量: ${(acc * 1000).toFixed(2)}mN`,
+          "background: #D97706; color: #FFF; font-weight: bold; border-radius: 3px; padding: 1px 5px;",
+          "color: #FCD34D;",
+          "color: #38BDF8; font-weight: bold;",
+          "color: #FCD34D;",
+          "color: #FB7185; font-weight: bold;",
+          "color: #E2E8F0;",
+        );
+      }
+    }
   }
 }
