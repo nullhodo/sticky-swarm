@@ -50,6 +50,7 @@ export interface SwarmParameters {
   // Connection Rules
   targetRule: TargetRule;
   stiffness: number;
+  showConstraints: boolean;
 
   // Disconnection (Breakage by Age)
   disconnectionEnable: boolean;

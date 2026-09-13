@@ -282,15 +282,20 @@ export function renderSwarmScene(
   target.translate(totalOffsetX, totalOffsetY);
   target.scale(totalScale);
 
-  drawSwarmConstraints(
-    target,
-    engine.activeConstraints,
-    params.disconnectionEnable,
-    params.disconnectionMinAge,
-  );
+  const shouldDrawDebug = options?.drawDebug ?? false;
+  const shouldDrawConstraints =
+    params.showConstraints || (shouldDrawDebug && params.debugMode);
+
+  if (shouldDrawConstraints) {
+    drawSwarmConstraints(
+      target,
+      engine.activeConstraints,
+      params.disconnectionEnable,
+      params.disconnectionMinAge,
+    );
+  }
   drawSwarmAgents(target, engine.agents, params.debugMode);
 
-  const shouldDrawDebug = options?.drawDebug ?? false;
   if (shouldDrawDebug && params.debugMode && params.debugVectors) {
     drawDebugVectors(target, engine.agents);
   }

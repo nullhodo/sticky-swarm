@@ -57,6 +57,13 @@ export const ConnectionSection: React.FC<ConnectionSectionProps> = ({
 
       <div className="pt-2 border-t border-gray-100 space-y-2.5">
         <CheckboxField
+          label="接着バネ拘束線を表示 (白い線)"
+          checked={params.showConstraints}
+          onChange={(checked) => onParamChange("showConstraints", checked)}
+          description="エージェント同士を繋ぐ物理バネの線を可視化します（デバッグモード時も自動表示）"
+        />
+
+        <CheckboxField
           label="一直線で複合剛体に結合 (Compound)"
           checked={params.compoundOnAlign}
           onChange={(checked) => onParamChange("compoundOnAlign", checked)}

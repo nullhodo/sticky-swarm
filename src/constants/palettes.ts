@@ -81,6 +81,7 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
 
   targetRule: "arm_arm",
   stiffness: 0.1,
+  showConstraints: false,
 
   disconnectionEnable: false,
   disconnectionMinAge: 5.0,
@@ -116,6 +117,8 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
   targetRule:
     "接着する対象のルール (any, body_body, arm_arm, arm_tip_any_angle, arm_body)",
   stiffness: "接着時のバネの硬さ",
+  showConstraints:
+    "接着バネ拘束線（白い線）を表示するか (デフォルトは非表示)",
   disconnectionEnable: "接着の古さに応じて時間経過で確率的に切断するか",
   disconnectionMinAge: "切断が発生し始めるまでの猶予時間 (秒)",
   disconnectionChance: "秒間あたりの基準切断確率 (0.01〜1.0)",
