@@ -212,6 +212,9 @@ export class SwarmEngine {
       const localY = p.position.y - compositeAgent.position.y;
       const localAngle = p.angle - compositeAgent.angle;
 
+      (p as unknown as { renderPartIndex: number }).renderPartIndex =
+        i - 1;
+
       const anyP = p as unknown as { partLabel: string };
       if (anyP.partLabel === "body") {
         renderParts.push({
@@ -242,6 +245,7 @@ export class SwarmEngine {
       noiseOffsetX: Math.random() * 1000,
       noiseOffsetY: Math.random() * 1000,
       noiseOffsetTorque: Math.random() * 1000,
+      lastAppliedForce: { x: 0, y: 0 },
     };
 
     this.agents.push(newAgentData);
@@ -260,12 +264,14 @@ export class SwarmEngine {
       const partA = pair.bodyA as unknown as {
         parentAgentId?: string;
         partLabel?: string;
+        renderPartIndex?: number;
         parent: Matter.Body;
         position: Matter.Vector;
       };
       const partB = pair.bodyB as unknown as {
         parentAgentId?: string;
         partLabel?: string;
+        renderPartIndex?: number;
         parent: Matter.Body;
         position: Matter.Vector;
       };
@@ -324,11 +330,13 @@ export class SwarmEngine {
   private createConnectionBetweenAgents(
     partA: {
       partLabel?: string;
+      renderPartIndex?: number;
       parent: Matter.Body;
       position: Matter.Vector;
     },
     partB: {
       partLabel?: string;
+      renderPartIndex?: number;
       parent: Matter.Body;
       position: Matter.Vector;
     },
@@ -336,37 +344,205 @@ export class SwarmEngine {
     agentIdA: string,
     agentIdB: string,
   ): void {
-    const rigidBodyA = partA.parent;
-    const rigidBodyB = partB.parent;
+    const agentA = this.agents.find((a) => a.id === agentIdA);
+    const agentB = this.agents.find((a) => a.id === agentIdB);
+    if (!agentA || !agentB) return;
 
-    const dx = rigidBodyB.position.x - rigidBodyA.position.x;
-    const dy = rigidBodyB.position.y - rigidBodyA.position.y;
-    const initialLength = Math.sqrt(dx * dx + dy * dy);
-
-    const originalAngleDiff = rigidBodyB.angle - rigidBodyA.angle;
-    const angleToB = Math.atan2(dy, dx);
-    const localAngleToB = angleToB - rigidBodyA.angle;
-
-    let targetLocalAngleToB = localAngleToB;
-    let targetAngleDiff = originalAngleDiff;
-    let doAlign = false;
-
+    let rpA: RenderPart | null = null;
     if (
-      this.currentParams.targetRule === "arm_arm" &&
-      partA.partLabel === "arm" &&
-      partB.partLabel === "arm"
+      partA.renderPartIndex !== undefined &&
+      agentA.renderParts[partA.renderPartIndex]
     ) {
-      doAlign = true;
-      const dxA = partA.position.x - rigidBodyA.position.x;
-      const dyA = partA.position.y - rigidBodyA.position.y;
-      const localAngleA = Math.atan2(dyA, dxA) - rigidBodyA.angle;
+      rpA = agentA.renderParts[partA.renderPartIndex];
+    }
+    if (!rpA) {
+      let bestDist = Number.POSITIVE_INFINITY;
+      const cosA = Math.cos(agentA.physicsBody.angle);
+      const sinA = Math.sin(agentA.physicsBody.angle);
+      for (const candidate of agentA.renderParts) {
+        const wx =
+          agentA.physicsBody.position.x +
+          (candidate.localX * cosA - candidate.localY * sinA);
+        const wy =
+          agentA.physicsBody.position.y +
+          (candidate.localX * sinA + candidate.localY * cosA);
+        const d = Math.hypot(wx - partA.position.x, wy - partA.position.y);
+        if (d < bestDist) {
+          bestDist = d;
+          rpA = candidate;
+        }
+      }
+    }
 
-      const dxB = partB.position.x - rigidBodyB.position.x;
-      const dyB = partB.position.y - rigidBodyB.position.y;
-      const localAngleB = Math.atan2(dyB, dxB) - rigidBodyB.angle;
+    let rpB: RenderPart | null = null;
+    if (
+      partB.renderPartIndex !== undefined &&
+      agentB.renderParts[partB.renderPartIndex]
+    ) {
+      rpB = agentB.renderParts[partB.renderPartIndex];
+    }
+    if (!rpB) {
+      let bestDist = Number.POSITIVE_INFINITY;
+      const cosB = Math.cos(agentB.physicsBody.angle);
+      const sinB = Math.sin(agentB.physicsBody.angle);
+      for (const candidate of agentB.renderParts) {
+        const wx =
+          agentB.physicsBody.position.x +
+          (candidate.localX * cosB - candidate.localY * sinB);
+        const wy =
+          agentB.physicsBody.position.y +
+          (candidate.localX * sinB + candidate.localY * cosB);
+        const d = Math.hypot(wx - partB.position.x, wy - partB.position.y);
+        if (d < bestDist) {
+          bestDist = d;
+          rpB = candidate;
+        }
+      }
+    }
 
-      targetLocalAngleToB = localAngleA;
-      targetAngleDiff = localAngleA - localAngleB + Math.PI;
+    if (!rpA || !rpB) return;
+
+    const rigidBodyA = agentA.physicsBody;
+    const rigidBodyB = agentB.physicsBody;
+
+    const angleA = rigidBodyA.angle;
+    const posA = rigidBodyA.position;
+    const cosA = Math.cos(angleA);
+    const sinA = Math.sin(angleA);
+
+    const radius = this.currentParams.baseRadius;
+    const armLen = this.currentParams.armLength;
+
+    const labelA =
+      partA.partLabel || (rpA.type === "circle" ? "body" : "arm");
+    const labelB =
+      partB.partLabel || (rpB.type === "circle" ? "body" : "arm");
+
+    let targetAngleB = rigidBodyB.angle;
+    let targetAngleDiff = rigidBodyB.angle - angleA;
+    let targetAgentB_posX = rigidBodyB.position.x;
+    let targetAgentB_posY = rigidBodyB.position.y;
+    const doAlign = true;
+
+    if (labelA === "arm" && labelB === "arm") {
+      const armAWorldAngle = angleA + rpA.localAngle;
+      const armAWorldX = posA.x + (rpA.localX * cosA - rpA.localY * sinA);
+      const armAWorldY = posA.y + (rpA.localX * sinA + rpA.localY * cosA);
+
+      // Collinear tip-to-tip orientation: arm B points in exact opposite direction
+      const targetArmBWorldAngle = armAWorldAngle + Math.PI;
+      targetAngleB = targetArmBWorldAngle - rpB.localAngle;
+      targetAngleDiff = targetAngleB - angleA;
+
+      // Tip A meets Tip B seamlessly
+      const targetArmBWorldX =
+        armAWorldX + Math.cos(armAWorldAngle) * armLen;
+      const targetArmBWorldY =
+        armAWorldY + Math.sin(armAWorldAngle) * armLen;
+
+      const cosB = Math.cos(targetAngleB);
+      const sinB = Math.sin(targetAngleB);
+      const armBOffset_x = rpB.localX * cosB - rpB.localY * sinB;
+      const armBOffset_y = rpB.localX * sinB + rpB.localY * cosB;
+
+      targetAgentB_posX = targetArmBWorldX - armBOffset_x;
+      targetAgentB_posY = targetArmBWorldY - armBOffset_y;
+    } else if (labelA === "arm" && labelB === "body") {
+      const armAWorldAngle = angleA + rpA.localAngle;
+      const armAWorldX = posA.x + (rpA.localX * cosA - rpA.localY * sinA);
+      const armAWorldY = posA.y + (rpA.localX * sinA + rpA.localY * cosA);
+
+      const targetCircleBWorldX =
+        armAWorldX + Math.cos(armAWorldAngle) * (armLen / 2 + radius);
+      const targetCircleBWorldY =
+        armAWorldY + Math.sin(armAWorldAngle) * (armLen / 2 + radius);
+
+      targetAngleB = rigidBodyB.angle;
+      targetAngleDiff = targetAngleB - angleA;
+
+      const cosB = Math.cos(targetAngleB);
+      const sinB = Math.sin(targetAngleB);
+      const circleBOffset_x = rpB.localX * cosB - rpB.localY * sinB;
+      const circleBOffset_y = rpB.localX * sinB + rpB.localY * cosB;
+
+      targetAgentB_posX = targetCircleBWorldX - circleBOffset_x;
+      targetAgentB_posY = targetCircleBWorldY - circleBOffset_y;
+    } else if (labelA === "body" && labelB === "arm") {
+      const circleAWorldX =
+        posA.x + (rpA.localX * cosA - rpA.localY * sinA);
+      const circleAWorldY =
+        posA.y + (rpA.localX * sinA + rpA.localY * cosA);
+
+      const dx = rigidBodyB.position.x - circleAWorldX;
+      const dy = rigidBodyB.position.y - circleAWorldY;
+      const angleToB = Math.atan2(dy, dx);
+
+      const targetArmBWorldAngle = angleToB + Math.PI;
+      targetAngleB = targetArmBWorldAngle - rpB.localAngle;
+      targetAngleDiff = targetAngleB - angleA;
+
+      const targetArmBWorldX =
+        circleAWorldX + Math.cos(angleToB) * (radius + armLen / 2);
+      const targetArmBWorldY =
+        circleAWorldY + Math.sin(angleToB) * (radius + armLen / 2);
+
+      const cosB = Math.cos(targetAngleB);
+      const sinB = Math.sin(targetAngleB);
+      const armBOffset_x = rpB.localX * cosB - rpB.localY * sinB;
+      const armBOffset_y = rpB.localX * sinB + rpB.localY * cosB;
+
+      targetAgentB_posX = targetArmBWorldX - armBOffset_x;
+      targetAgentB_posY = targetArmBWorldY - armBOffset_y;
+    } else {
+      // body_body
+      const circleAWorldX =
+        posA.x + (rpA.localX * cosA - rpA.localY * sinA);
+      const circleAWorldY =
+        posA.y + (rpA.localX * sinA + rpA.localY * cosA);
+
+      const dx = rigidBodyB.position.x - circleAWorldX;
+      const dy = rigidBodyB.position.y - circleAWorldY;
+      const angleToB = Math.atan2(dy, dx);
+
+      const targetCircleBWorldX =
+        circleAWorldX + Math.cos(angleToB) * (radius * 2);
+      const targetCircleBWorldY =
+        circleAWorldY + Math.sin(angleToB) * (radius * 2);
+
+      targetAngleB = rigidBodyB.angle;
+      targetAngleDiff = targetAngleB - angleA;
+
+      const cosB = Math.cos(targetAngleB);
+      const sinB = Math.sin(targetAngleB);
+      const circleBOffset_x = rpB.localX * cosB - rpB.localY * sinB;
+      const circleBOffset_y = rpB.localX * sinB + rpB.localY * cosB;
+
+      targetAgentB_posX = targetCircleBWorldX - circleBOffset_x;
+      targetAgentB_posY = targetCircleBWorldY - circleBOffset_y;
+    }
+
+    const targetRelX = targetAgentB_posX - posA.x;
+    const targetRelY = targetAgentB_posY - posA.y;
+    const targetDistance = Math.hypot(targetRelX, targetRelY);
+    const targetWorldAngleToB = Math.atan2(targetRelY, targetRelX);
+    const targetLocalAngleToB = targetWorldAngleToB - angleA;
+
+    const initialRelX = rigidBodyB.position.x - posA.x;
+    const initialRelY = rigidBodyB.position.y - posA.y;
+    const initialLength = Math.hypot(initialRelX, initialRelY);
+    const initialWorldAngleToB = Math.atan2(initialRelY, initialRelX);
+    const initialLocalAngleToB = initialWorldAngleToB - angleA;
+    const initialAngleDiff = rigidBodyB.angle - angleA;
+
+    // Disable mutual collision between connecting bodies while aligning so arms don't push each other sideways
+    const alignGroupId = -Math.floor(Math.random() * 100000 + 1);
+    rigidBodyA.collisionFilter.group = alignGroupId;
+    rigidBodyB.collisionFilter.group = alignGroupId;
+    for (let i = 0; i < rigidBodyA.parts.length; i++) {
+      rigidBodyA.parts[i].collisionFilter.group = alignGroupId;
+    }
+    for (let i = 0; i < rigidBodyB.parts.length; i++) {
+      rigidBodyB.parts[i].collisionFilter.group = alignGroupId;
     }
 
     const newConstraint = Matter.Constraint.create({
@@ -385,23 +561,20 @@ export class SwarmEngine {
       agentAId: agentIdA,
       agentBId: agentIdB,
       originalLength: initialLength,
+      targetDistance,
       alignProgress: doAlign ? 0.0 : 1.0,
-      initialLocalAngleToB: localAngleToB,
+      initialLocalAngleToB,
       targetLocalAngleToB,
-      currentLocalAngleToB: localAngleToB,
-      initialAngleDiff: originalAngleDiff,
+      currentLocalAngleToB: initialLocalAngleToB,
+      initialAngleDiff,
       targetAngleDiff,
-      currentAngleDiff: originalAngleDiff,
+      currentAngleDiff: initialAngleDiff,
     });
 
     this.connectedPairsSet.add(pairIdentifier);
   }
 
   private enforceRigidConnection(): void {
-    const stiffness = this.currentParams.stiffness;
-    const correctionFactor = Math.min(stiffness * 0.5, 0.3);
-    if (correctionFactor <= 0.001) return;
-
     for (let i = 0; i < this.activeConstraints.length; i++) {
       const cw = this.activeConstraints[i];
       const bodyA = cw.constraint.bodyA;
@@ -409,7 +582,7 @@ export class SwarmEngine {
       if (!bodyA || !bodyB) continue;
 
       if (cw.alignProgress < 1.0) {
-        cw.alignProgress += 0.02;
+        cw.alignProgress += 0.035;
         if (cw.alignProgress > 1.0) cw.alignProgress = 1.0;
 
         const t = 1 - (1 - cw.alignProgress) ** 3;
@@ -423,77 +596,50 @@ export class SwarmEngine {
           cw.targetAngleDiff,
           t,
         );
+        cw.constraint.length =
+          cw.originalLength + (cw.targetDistance - cw.originalLength) * t;
       }
 
       if (this.currentParams.compoundOnAlign && cw.alignProgress >= 1.0) {
         continue;
       }
 
-      const currentCorrection =
-        cw.alignProgress < 1.0 ? correctionFactor * 0.5 : correctionFactor;
-      const currentAngleDiff = bodyB.angle - bodyA.angle;
-      let diffError = cw.currentAngleDiff - currentAngleDiff;
-      while (diffError > Math.PI) diffError -= 2 * Math.PI;
-      while (diffError < -Math.PI) diffError += 2 * Math.PI;
+      // Strong angular restoration towards currentAngleDiff
+      const targetWorldAngleB = bodyA.angle + cw.currentAngleDiff;
+      let angleErrorB = targetWorldAngleB - bodyB.angle;
+      while (angleErrorB > Math.PI) angleErrorB -= 2 * Math.PI;
+      while (angleErrorB < -Math.PI) angleErrorB += 2 * Math.PI;
 
-      const totalInertia = bodyA.inertia + bodyB.inertia;
-      if (totalInertia > 0 && totalInertia !== Number.POSITIVE_INFINITY) {
-        const correctionA =
-          -(diffError * (bodyB.inertia / totalInertia)) *
-          currentCorrection;
-        const correctionB =
-          diffError * (bodyA.inertia / totalInertia) * currentCorrection;
+      const rotCorr = 0.25;
+      Matter.Body.setAngularVelocity(
+        bodyB,
+        bodyA.angularVelocity + angleErrorB * rotCorr,
+      );
+      Matter.Body.setAngularVelocity(
+        bodyA,
+        bodyA.angularVelocity - angleErrorB * (rotCorr * 0.5),
+      );
 
-        Matter.Body.setAngularVelocity(
-          bodyA,
-          bodyA.angularVelocity + correctionA,
-        );
-        Matter.Body.setAngularVelocity(
-          bodyB,
-          bodyB.angularVelocity + correctionB,
-        );
-      }
+      // Positional restoration towards target alignment position
+      const targetWorldAngleToB = bodyA.angle + cw.currentLocalAngleToB;
+      const targetDist = cw.constraint.length || cw.targetDistance;
+      const desiredPosX =
+        bodyA.position.x + Math.cos(targetWorldAngleToB) * targetDist;
+      const desiredPosY =
+        bodyA.position.y + Math.sin(targetWorldAngleToB) * targetDist;
 
-      const dx = bodyB.position.x - bodyA.position.x;
-      const dy = bodyB.position.y - bodyA.position.y;
-      const currentAngleToB = Math.atan2(dy, dx);
+      const errX = desiredPosX - bodyB.position.x;
+      const errY = desiredPosY - bodyB.position.y;
+      const posCorr = 0.2;
 
-      const targetAngleToB = bodyA.angle + cw.currentLocalAngleToB;
-      let dirError = targetAngleToB - currentAngleToB;
-      while (dirError > Math.PI) dirError -= 2 * Math.PI;
-      while (dirError < -Math.PI) dirError += 2 * Math.PI;
-
-      const targetDist = cw.constraint.length || 0;
-      if (targetDist > 0.1) {
-        const targetPosX =
-          bodyA.position.x + Math.cos(targetAngleToB) * targetDist;
-        const targetPosY =
-          bodyA.position.y + Math.sin(targetAngleToB) * targetDist;
-
-        const errX = targetPosX - bodyB.position.x;
-        const errY = targetPosY - bodyB.position.y;
-
-        const totalMass = bodyA.mass + bodyB.mass;
-        if (totalMass > 0 && totalMass !== Number.POSITIVE_INFINITY) {
-          const velCorrB_x =
-            errX * (bodyA.mass / totalMass) * currentCorrection;
-          const velCorrB_y =
-            errY * (bodyA.mass / totalMass) * currentCorrection;
-          const velCorrA_x =
-            -errX * (bodyB.mass / totalMass) * currentCorrection;
-          const velCorrA_y =
-            -errY * (bodyB.mass / totalMass) * currentCorrection;
-
-          Matter.Body.setVelocity(bodyA, {
-            x: bodyA.velocity.x + velCorrA_x,
-            y: bodyA.velocity.y + velCorrA_y,
-          });
-          Matter.Body.setVelocity(bodyB, {
-            x: bodyB.velocity.x + velCorrB_x,
-            y: bodyB.velocity.y + velCorrB_y,
-          });
-        }
-      }
+      Matter.Body.setVelocity(bodyB, {
+        x: bodyB.velocity.x + errX * posCorr,
+        y: bodyB.velocity.y + errY * posCorr,
+      });
+      Matter.Body.setVelocity(bodyA, {
+        x: bodyA.velocity.x - errX * (posCorr * 0.5),
+        y: bodyA.velocity.y - errY * (posCorr * 0.5),
+      });
     }
   }
 
@@ -531,51 +677,81 @@ export class SwarmEngine {
     const indexB = this.agents.findIndex((a) => a.id === agentB.id);
     if (indexB !== -1) this.agents.splice(indexB, 1);
 
-    const newBodies: Matter.Body[] = [];
     this.agentIdCounter++;
     const newAgentId = `agent_compound_${this.agentIdCounter}`;
 
-    const extractParts = (agent: SwarmAgent) => {
-      for (let i = 1; i < agent.physicsBody.parts.length; i++) {
-        const p = agent.physicsBody.parts[i];
-        const rp = agent.renderParts[i - 1];
+    // Place Agent B at exact target relative position and angle
+    const targetAngleB = agentA.physicsBody.angle + cw.targetAngleDiff;
+    const targetWorldAngleToB =
+      agentA.physicsBody.angle + cw.targetLocalAngleToB;
+    const targetAgentB_posX =
+      agentA.physicsBody.position.x +
+      Math.cos(targetWorldAngleToB) * cw.targetDistance;
+    const targetAgentB_posY =
+      agentA.physicsBody.position.y +
+      Math.sin(targetWorldAngleToB) * cw.targetDistance;
 
-        let cloneBody: Matter.Body | null = null;
-        if (rp.type === "circle" && rp.radius) {
-          cloneBody = Matter.Bodies.circle(
-            p.position.x,
-            p.position.y,
-            rp.radius,
-            {
-              partLabel: "body",
-              parentAgentId: newAgentId,
-            } as Matter.IBodyDefinition,
-          );
-        } else if (rp.type === "rect" && rp.width && rp.height) {
-          cloneBody = Matter.Bodies.rectangle(
-            p.position.x,
-            p.position.y,
-            rp.width,
-            rp.height,
-            {
-              angle: p.angle,
-              partLabel: "arm",
-              parentAgentId: newAgentId,
-            } as Matter.IBodyDefinition,
-          );
-        }
+    Matter.Body.setAngle(agentB.physicsBody, targetAngleB);
+    Matter.Body.setPosition(agentB.physicsBody, {
+      x: targetAgentB_posX,
+      y: targetAgentB_posY,
+    });
 
-        if (cloneBody) {
-          (
-            cloneBody as unknown as { customRenderData: RenderPart }
-          ).customRenderData = { ...rp };
-          newBodies.push(cloneBody);
-        }
+    // Extract all parts analytically to avoid Matter.js stale part.angle bug
+    interface WorldItem extends RenderPart {
+      wx: number;
+      wy: number;
+      wAngle: number;
+    }
+    const worldItems: WorldItem[] = [];
+
+    const extractAnalyticalParts = (agent: SwarmAgent) => {
+      const cos = Math.cos(agent.physicsBody.angle);
+      const sin = Math.sin(agent.physicsBody.angle);
+      const px = agent.physicsBody.position.x;
+      const py = agent.physicsBody.position.y;
+      for (let i = 0; i < agent.renderParts.length; i++) {
+        const rp = agent.renderParts[i];
+        const wx = px + (rp.localX * cos - rp.localY * sin);
+        const wy = py + (rp.localX * sin + rp.localY * cos);
+        const wAngle = agent.physicsBody.angle + rp.localAngle;
+        worldItems.push({
+          ...rp,
+          wx,
+          wy,
+          wAngle,
+        });
       }
     };
 
-    extractParts(agentA);
-    extractParts(agentB);
+    extractAnalyticalParts(agentA);
+    extractAnalyticalParts(agentB);
+
+    const newBodies: Matter.Body[] = [];
+    for (let i = 0; i < worldItems.length; i++) {
+      const item = worldItems[i];
+      let b: Matter.Body;
+      if (item.type === "circle" && item.radius) {
+        b = Matter.Bodies.circle(item.wx, item.wy, item.radius, {
+          partLabel: "body",
+          parentAgentId: newAgentId,
+        } as Matter.IBodyDefinition);
+      } else {
+        b = Matter.Bodies.rectangle(
+          item.wx,
+          item.wy,
+          item.width || this.currentParams.armLength,
+          item.height || this.currentParams.armThickness,
+          {
+            angle: item.wAngle,
+            partLabel: "arm",
+            parentAgentId: newAgentId,
+          } as Matter.IBodyDefinition,
+        );
+      }
+      (b as unknown as { renderPartIndex: number }).renderPartIndex = i;
+      newBodies.push(b);
+    }
 
     const compoundBody = Matter.Body.create({
       parts: newBodies,
@@ -583,27 +759,52 @@ export class SwarmEngine {
       restitution: 0.8,
     });
 
-    const finalRenderParts: RenderPart[] = [];
-    for (let i = 1; i < compoundBody.parts.length; i++) {
-      const p = compoundBody.parts[i];
-      const rp = (p as unknown as { customRenderData?: RenderPart })
-        .customRenderData;
-      if (rp) {
-        const localX = p.position.x - compoundBody.position.x;
-        const localY = p.position.y - compoundBody.position.y;
-        const localAngle = p.angle - compoundBody.angle;
+    // Conservation of momentum
+    const totalMass = agentA.physicsBody.mass + agentB.physicsBody.mass;
+    if (totalMass > 0) {
+      Matter.Body.setVelocity(compoundBody, {
+        x:
+          (agentA.physicsBody.velocity.x * agentA.physicsBody.mass +
+            agentB.physicsBody.velocity.x * agentB.physicsBody.mass) /
+          totalMass,
+        y:
+          (agentA.physicsBody.velocity.y * agentA.physicsBody.mass +
+            agentB.physicsBody.velocity.y * agentB.physicsBody.mass) /
+          totalMass,
+      });
+      Matter.Body.setAngularVelocity(
+        compoundBody,
+        (agentA.physicsBody.angularVelocity +
+          agentB.physicsBody.angularVelocity) /
+          2,
+      );
+    }
 
-        finalRenderParts.push({
-          type: rp.type,
-          localX,
-          localY,
-          localAngle,
-          radius: rp.radius,
-          width: rp.width,
-          height: rp.height,
-          color: rp.color,
-        });
-      }
+    // Set renderPartIndex on compoundBody.parts
+    for (let i = 1; i < compoundBody.parts.length; i++) {
+      (
+        compoundBody.parts[i] as unknown as { renderPartIndex: number }
+      ).renderPartIndex = i - 1;
+    }
+
+    // Recompute exact renderParts relative to compoundBody
+    const finalRenderParts: RenderPart[] = [];
+    for (let i = 0; i < worldItems.length; i++) {
+      const item = worldItems[i];
+      const cos = Math.cos(-compoundBody.angle);
+      const sin = Math.sin(-compoundBody.angle);
+      const dx = item.wx - compoundBody.position.x;
+      const dy = item.wy - compoundBody.position.y;
+      finalRenderParts.push({
+        type: item.type,
+        localX: dx * cos - dy * sin,
+        localY: dx * sin + dy * cos,
+        localAngle: item.wAngle - compoundBody.angle,
+        radius: item.radius,
+        width: item.width,
+        height: item.height,
+        color: item.color,
+      });
     }
 
     const newAgentData: SwarmAgent = {
@@ -613,6 +814,7 @@ export class SwarmEngine {
       noiseOffsetX: Math.random() * 1000,
       noiseOffsetY: Math.random() * 1000,
       noiseOffsetTorque: Math.random() * 1000,
+      lastAppliedForce: { x: 0, y: 0 },
     };
 
     this.agents.push(newAgentData);
@@ -677,15 +879,29 @@ export class SwarmEngine {
     const speedMultiplier = this.currentParams.movementSpeed;
     const rotSpeedMultiplier = this.currentParams.rotationSpeed;
 
+    // Collect IDs of agents actively aligning
+    const aligningAgentIds = new Set<string>();
+    for (let i = 0; i < this.activeConstraints.length; i++) {
+      const cw = this.activeConstraints[i];
+      if (cw.alignProgress < 1.0) {
+        aligningAgentIds.add(cw.agentAId);
+        aligningAgentIds.add(cw.agentBId);
+      }
+    }
+
     for (let index = 0; index < this.agents.length; index++) {
       const agentData = this.agents[index];
       const body = agentData.physicsBody;
 
+      // If agent is actively aligning, suppress random torque and reduce noise force
+      const isAligning = aligningAgentIds.has(agentData.id);
+      const forceScale = isAligning ? 0.2 : 1.0;
+
       const nx = this.noiseFunction(agentData.noiseOffsetX) - 0.5;
       const ny = this.noiseFunction(agentData.noiseOffsetY) - 0.5;
 
-      const forceX = nx * 0.008 * speedMultiplier * body.mass;
-      const forceY = ny * 0.008 * speedMultiplier * body.mass;
+      const forceX = nx * 0.008 * speedMultiplier * body.mass * forceScale;
+      const forceY = ny * 0.008 * speedMultiplier * body.mass * forceScale;
 
       agentData.noiseOffsetX += 0.01;
       agentData.noiseOffsetY += 0.01;
@@ -694,12 +910,15 @@ export class SwarmEngine {
         x: forceX,
         y: forceY,
       });
+      agentData.lastAppliedForce = { x: forceX, y: forceY };
 
-      const nTorque =
-        this.noiseFunction(agentData.noiseOffsetTorque) - 0.5;
-      const torqueAmount =
-        nTorque * 1.5 * speedMultiplier * rotSpeedMultiplier * body.mass;
-      body.torque += torqueAmount;
+      if (!isAligning) {
+        const nTorque =
+          this.noiseFunction(agentData.noiseOffsetTorque) - 0.5;
+        const torqueAmount =
+          nTorque * 1.5 * speedMultiplier * rotSpeedMultiplier * body.mass;
+        body.torque += torqueAmount;
+      }
 
       agentData.noiseOffsetTorque += 0.01;
     }
@@ -739,6 +958,8 @@ export class SwarmEngine {
           x: forceX,
           y: forceY,
         });
+        agentData.lastAppliedForce.x += forceX;
+        agentData.lastAppliedForce.y += forceY;
       }
     }
   }
@@ -752,16 +973,28 @@ export class SwarmEngine {
       const position = body.position;
       const repulseForce = forceMagnitude * body.mass * 0.5;
 
+      let boundForceX = 0;
+      let boundForceY = 0;
+
       if (position.x < marginSize) {
-        Matter.Body.applyForce(body, position, { x: repulseForce, y: 0 });
+        boundForceX += repulseForce;
       } else if (position.x > LOGICAL_SPACE_WIDTH - marginSize) {
-        Matter.Body.applyForce(body, position, { x: -repulseForce, y: 0 });
+        boundForceX -= repulseForce;
       }
 
       if (position.y < marginSize) {
-        Matter.Body.applyForce(body, position, { x: 0, y: repulseForce });
+        boundForceY += repulseForce;
       } else if (position.y > LOGICAL_SPACE_HEIGHT - marginSize) {
-        Matter.Body.applyForce(body, position, { x: 0, y: -repulseForce });
+        boundForceY -= repulseForce;
+      }
+
+      if (boundForceX !== 0 || boundForceY !== 0) {
+        Matter.Body.applyForce(body, position, {
+          x: boundForceX,
+          y: boundForceY,
+        });
+        this.agents[index].lastAppliedForce.x += boundForceX;
+        this.agents[index].lastAppliedForce.y += boundForceY;
       }
     }
   }
