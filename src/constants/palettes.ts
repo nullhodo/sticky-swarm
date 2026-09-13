@@ -60,13 +60,13 @@ export const PREDEFINED_PALETTES: ColorPalette[] = [
 ];
 
 export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
-  agentCount: 80,
-  movementSpeed: 1.5,
-  rotationSpeed: 0.2,
+  agentCount: 200,
+  movementSpeed: 0.5,
+  rotationSpeed: 0.1,
   spawnNewAgents: true,
   maintainPopulation: true,
   spawnRate: 1.0,
-  fpsSafetyLimit: 0,
+  fpsSafetyLimit: 30,
   debugMode: false,
   debugVectors: true,
 
@@ -74,9 +74,9 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
   interactionMode: "attract",
   interactionForce: 5.0,
 
-  baseRadius: 25,
+  baseRadius: 15,
   armLength: 20,
-  armThickness: 6,
+  armThickness: 2,
   armPattern: "three_120",
 
   targetRule: "arm_arm",
