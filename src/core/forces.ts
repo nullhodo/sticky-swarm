@@ -32,11 +32,31 @@ export function applyNoiseForces(
     const isAligning = aligningAgentIds.has(agentData.id);
     const forceScale = isAligning ? 0.2 : 1.0;
 
+    const bodyCount = Math.max(
+      1,
+      agentData.renderParts.filter((p) => p.type === "circle").length,
+    );
+    // Larger objects accelerate and move more slowly according to size
+    const sizeSpeedFactor = 1.0 / Math.sqrt(bodyCount);
+    const sizeRotFactor = 1.0 / bodyCount ** 0.75;
+
     const nx = noiseFn(agentData.noiseOffsetX) - 0.5;
     const ny = noiseFn(agentData.noiseOffsetY) - 0.5;
 
-    const forceX = nx * 0.008 * speedMultiplier * body.mass * forceScale;
-    const forceY = ny * 0.008 * speedMultiplier * body.mass * forceScale;
+    const forceX =
+      nx *
+      0.008 *
+      speedMultiplier *
+      body.mass *
+      forceScale *
+      sizeSpeedFactor;
+    const forceY =
+      ny *
+      0.008 *
+      speedMultiplier *
+      body.mass *
+      forceScale *
+      sizeSpeedFactor;
 
     agentData.noiseOffsetX += 0.01;
     agentData.noiseOffsetY += 0.01;
@@ -49,16 +69,13 @@ export function applyNoiseForces(
 
     if (!isAligning) {
       const nTorque = noiseFn(agentData.noiseOffsetTorque) - 0.5;
-      // Dampen torque for larger compound bodies so massive structures don't spin like tops
-      const massDampFactor =
-        1.0 / Math.sqrt(Math.max(1, body.parts.length / 4));
       const torqueAmount =
         nTorque *
         1.5 *
         speedMultiplier *
         rotSpeedMultiplier *
         body.mass *
-        massDampFactor;
+        sizeRotFactor;
       body.torque += torqueAmount;
     }
 
@@ -88,8 +105,13 @@ export function applyMouseInteraction(
     const dist = Math.sqrt(distSq);
 
     if (dist > 1 && dist < interactionRadius) {
+      const bodyCount = Math.max(
+        1,
+        agentData.renderParts.filter((p) => p.type === "circle").length,
+      );
+      const sizeFactor = 1.0 / Math.sqrt(bodyCount);
       const strength =
-        (1 - dist / interactionRadius) * forceMag * body.mass;
+        (1 - dist / interactionRadius) * forceMag * body.mass * sizeFactor;
       let forceX = (dx / dist) * strength;
       let forceY = (dy / dist) * strength;
 
@@ -151,11 +173,24 @@ export function clampAgentVelocities(
   agents: SwarmAgent[],
   params: SwarmParameters,
 ): void {
-  const maxSpeed = 5.0 * Math.max(1, params.movementSpeed);
-  const maxAngularSpeed = 0.12 * Math.max(1, params.rotationSpeed);
+  const baseMaxSpeed = 5.0 * Math.max(1, params.movementSpeed);
+  const baseMaxAngularSpeed = 0.12 * Math.max(1, params.rotationSpeed);
 
   for (let i = 0; i < agents.length; i++) {
-    const body = agents[i].physicsBody;
+    const agent = agents[i];
+    const body = agent.physicsBody;
+    const bodyCount = Math.max(
+      1,
+      agent.renderParts.filter((p) => p.type === "circle").length,
+    );
+
+    // Scale down maximum velocity and angular velocity as compound object grows
+    const sizeSpeedLimit = 1.0 / Math.sqrt(bodyCount);
+    const sizeRotLimit = 1.0 / bodyCount ** 0.75;
+
+    const maxSpeed = baseMaxSpeed * sizeSpeedLimit;
+    const maxAngularSpeed = baseMaxAngularSpeed * sizeRotLimit;
+
     const speedSq =
       body.velocity.x * body.velocity.x +
       body.velocity.y * body.velocity.y;

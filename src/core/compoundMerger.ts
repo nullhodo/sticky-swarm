@@ -98,9 +98,19 @@ export function mergeAgentsIntoCompound(
     newBodies.push(b);
   }
 
+  const compoundBodyCount = Math.max(
+    1,
+    worldItems.filter((p) => p.type === "circle").length,
+  );
+  // Scale fluid resistance moderately with object size: 0.03 base, increasing smoothly with compound mass
+  const compoundFrictionAir = Math.min(
+    0.08,
+    0.03 + 0.01 * Math.log2(Math.max(1, compoundBodyCount)),
+  );
+
   const compoundBody = Matter.Body.create({
     parts: newBodies,
-    frictionAir: 0.035,
+    frictionAir: compoundFrictionAir,
     restitution: 0.2,
   });
 
