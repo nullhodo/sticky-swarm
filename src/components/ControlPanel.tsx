@@ -143,6 +143,7 @@ export const ControlPanel: React.FC<Props> = ({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -420, opacity: 0 }}
             transition={{ type: "spring", damping: 26, stiffness: 220 }}
+            onWheel={(e) => e.stopPropagation()}
             className="absolute top-4 left-4 bottom-4 w-96 z-40 bg-white/95 text-gray-900 rounded-md shadow-2xl border border-gray-200 backdrop-blur-md flex flex-col overflow-hidden"
           >
             {/* Header */}

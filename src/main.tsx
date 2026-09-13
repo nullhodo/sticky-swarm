@@ -420,7 +420,18 @@ const App: React.FC = () => {
         }
       };
 
-      p.mouseWheel = (event: { deltaY: number }) => {
+      p.mouseWheel = (event: { deltaY: number; target?: EventTarget }) => {
+        const canvasEl = p5ContainerRef.current?.querySelector("canvas");
+        const targetEl = event?.target as HTMLElement | undefined;
+        const hoveredEl = document.elementFromPoint(p.mouseX, p.mouseY);
+
+        if (
+          (targetEl && canvasEl && targetEl !== canvasEl) ||
+          (hoveredEl && canvasEl && hoveredEl !== canvasEl)
+        ) {
+          return true;
+        }
+
         const mx = p.mouseX;
         const my = p.mouseY;
 
