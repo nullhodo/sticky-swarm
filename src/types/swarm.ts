@@ -27,6 +27,7 @@ export interface SwarmParameters {
   spawnNewAgents: boolean;
   maintainPopulation: boolean;
   spawnRate: number;
+  fpsSafetyLimit: number;
   debugMode: boolean;
   debugVectors: boolean;
 

@@ -503,15 +503,17 @@ const App: React.FC = () => {
           engine.applyMouseInteraction(logicalMouseX, logicalMouseY);
         }
 
+        const currentFps = Math.round(p.frameRate());
+
         // Step physics simulation
-        engine.step(currentParams);
+        engine.step(currentParams, currentFps);
 
         // Render viewport with unified renderer
         renderSwarmScene(p, engine, p.width, p.height, currentParams, {
           drawDebug: true,
           zoomLevel: zoom,
           panOffset: pan,
-          fps: Math.round(p.frameRate()),
+          fps: currentFps,
         });
       };
     };

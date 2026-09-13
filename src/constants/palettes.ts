@@ -66,6 +66,7 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
   spawnNewAgents: true,
   maintainPopulation: true,
   spawnRate: 1.0,
+  fpsSafetyLimit: 0,
   debugMode: false,
   debugVectors: true,
 
@@ -103,6 +104,8 @@ export const PARAMETER_COMMENTS_MAP: Record<string, string> = {
   spawnNewAgents: "画面外から新たなエージェントを継続的に登場させるか",
   maintainPopulation: "現在数が初期agentCountを下回った場合のみ登場させる",
   spawnRate: "新たなエージェントが登場する頻度 (1秒あたりの平均登場数)",
+  fpsSafetyLimit:
+    "指定FPSを下回った場合にエージェントの新規追加を一時停止する安全ガード (0=無効, 30, 60)",
   debugMode: "物理エンジンのコリジョンを表示するデバッグモード",
   debugVectors: "物理演算の動き（速度）や力を矢印ベクトルで可視化する",
   baseRadius: "エージェントの体の半径",

@@ -3,6 +3,7 @@ import type React from "react";
 import type { SwarmParameters } from "../../types/swarm";
 import { AccordionSection } from "../ui/AccordionSection";
 import { CheckboxField } from "../ui/CheckboxField";
+import { SelectField } from "../ui/SelectField";
 import { SliderField } from "../ui/SliderField";
 
 interface SystemSectionProps {
@@ -14,6 +15,12 @@ interface SystemSectionProps {
     val: SwarmParameters[keyof SwarmParameters],
   ) => void;
 }
+
+const FPS_SAFETY_OPTIONS = [
+  { label: "無効 (制限なし)", value: "0" },
+  { label: "30 FPS 未満で追加停止", value: "30" },
+  { label: "60 FPS 未満で追加停止", value: "60" },
+];
 
 export const SystemSection: React.FC<SystemSectionProps> = ({
   params,
@@ -31,12 +38,13 @@ export const SystemSection: React.FC<SystemSectionProps> = ({
     >
       <SliderField
         label="初期エージェント数"
+        description="指数スケール (10〜1000体)"
         value={params.agentCount}
         displayValue={`${params.agentCount}体`}
         min={10}
         max={1000}
+        step={1}
         isLogarithmic={true}
-        description="指数スケール (10〜1000体)"
         onChange={(val) => onParamChange("agentCount", Math.round(val))}
       />
 
@@ -44,7 +52,7 @@ export const SystemSection: React.FC<SystemSectionProps> = ({
         label="ランダム移動速度"
         value={params.movementSpeed}
         displayValue={params.movementSpeed.toFixed(1)}
-        min={0.1}
+        min={0.0}
         max={5.0}
         step={0.1}
         onChange={(val) => onParamChange("movementSpeed", val)}
@@ -55,7 +63,7 @@ export const SystemSection: React.FC<SystemSectionProps> = ({
         value={params.rotationSpeed}
         displayValue={params.rotationSpeed.toFixed(1)}
         min={0.0}
-        max={5.0}
+        max={3.0}
         step={0.1}
         onChange={(val) => onParamChange("rotationSpeed", val)}
       />
@@ -76,7 +84,7 @@ export const SystemSection: React.FC<SystemSectionProps> = ({
         />
 
         {params.spawnNewAgents && (
-          <div className="pt-1">
+          <div className="pt-1 space-y-2">
             <SliderField
               label="登場頻度 (1秒あたりの平均数)"
               value={params.spawnRate}
@@ -85,6 +93,14 @@ export const SystemSection: React.FC<SystemSectionProps> = ({
               max={5.0}
               step={0.1}
               onChange={(val) => onParamChange("spawnRate", val)}
+            />
+            <SelectField
+              label="FPS安全ガード (低下時に追加停止)"
+              value={String(params.fpsSafetyLimit ?? 0)}
+              options={FPS_SAFETY_OPTIONS}
+              onChange={(val) =>
+                onParamChange("fpsSafetyLimit", Number(val))
+              }
             />
           </div>
         )}

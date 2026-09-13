@@ -31,6 +31,9 @@ export class SwarmEngine {
   private debugLogCooldowns = new Map<string, number>();
   private agentIdCounter = 0;
 
+  public isSpawnThrottledByFps = false;
+  public currentFps = 60;
+
   private uniformBodyColor: string | null = null;
   private uniformArmColor: string | null = null;
 
@@ -397,7 +400,21 @@ export class SwarmEngine {
 
   private spawnAgentsDynamically(): void {
     const params = this.currentParams;
-    if (!params.spawnNewAgents) return;
+    if (!params.spawnNewAgents) {
+      this.isSpawnThrottledByFps = false;
+      return;
+    }
+
+    // Check FPS safety limit (30 or 60 fps)
+    if (params.fpsSafetyLimit && params.fpsSafetyLimit > 0) {
+      const threshold =
+        params.fpsSafetyLimit === 60 ? 58 : params.fpsSafetyLimit;
+      if (this.currentFps > 0 && this.currentFps < threshold) {
+        this.isSpawnThrottledByFps = true;
+        return;
+      }
+    }
+    this.isSpawnThrottledByFps = false;
 
     if (params.maintainPopulation) {
       if (this.agents.length >= params.agentCount) return;
@@ -461,8 +478,9 @@ export class SwarmEngine {
     );
   }
 
-  public step(params: SwarmParameters): void {
+  public step(params: SwarmParameters, currentFps = 60): void {
     this.currentParams = params;
+    this.currentFps = currentFps;
     Matter.Engine.update(this.engine, 1000 / 60);
 
     // Decrement disconnection cooldowns
