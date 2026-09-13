@@ -90,11 +90,11 @@ export const DEFAULT_SWARM_PARAMETERS: SwarmParameters = {
 
   compoundOnAlign: true,
 
-  paletteIndex: 0,
-  backgroundColor: "#292E4F",
-  availableObjectColors: ["#A6171C", "#D6D0C5", "#F1C045"],
-  uniformColor: true,
-  uniformColorHex: "#A6171C",
+  paletteIndex: 12,
+  backgroundColor: "#2A3D2A",
+  availableObjectColors: ["#829E65", "#A8A599", "#C76B3C", "#EFECE1"],
+  uniformColor: false,
+  uniformColorHex: "#829E65",
   darkerArmColor: true,
   shadowEnable: false,
   shadowBlur: 12,
